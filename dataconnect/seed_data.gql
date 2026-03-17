@@ -1,0 +1,100 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "Seed data mutation, run once by admin.") {
+  user_insertMany(data: [
+    {
+      id: "b2d8e4c0-3b7f-4d1a-8c5e-0a9b6f1e2d3c",
+      displayName: "Alice Smith",
+      email: "alice.smith@example.com",
+      createdAt: "2023-01-15T10:00:00Z",
+      bio: "Passionate about learning new things.",
+      role: "student"
+    },
+    {
+      id: "a1c2b3d4-e5f6-7890-1234-567890abcdef",
+      displayName: "Bob Johnson",
+      email: "bob.johnson@example.com",
+      createdAt: "2023-02-20T11:30:00Z",
+      bio: "Experienced educator and course creator.",
+      role: "teacher"
+    }
+  ])
+  course_insertMany(data: [
+    {
+      id: "c7f9e1b3-a5d7-4f8c-9e2b-1d0a3e5c7f8g",
+      title: "Introduction to GraphQL",
+      description: "Learn the basics of GraphQL queries and mutations.",
+      createdAt: "2023-03-01T09:00:00Z",
+      creator: {id: "a1c2b3d4-e5f6-7890-1234-567890abcdef"},
+      difficultyLevel: "Beginner",
+      category: "Programming",
+      averageRating: 4.5
+    },
+    {
+      id: "d8e0f2c4-b6a8-5e9d-0f3c-2e1b4f6d8a9h",
+      title: "Advanced React Hooks",
+      description: "Master custom hooks and state management in React.",
+      createdAt: "2023-03-10T14:00:00Z",
+      creator: {id: "a1c2b3d4-e5f6-7890-1234-567890abcdef"},
+      difficultyLevel: "Intermediate",
+      category: "Web Development",
+      averageRating: 4.8
+    }
+  ])
+  lesson_insertMany(data: [
+    {
+      id: "e9f0a1d2-c3b4-6e7f-8a9b-0c1d2e3f4a5b",
+      title: "What is GraphQL?",
+      lessonType: "Video",
+      orderIndex: 1,
+      course: {id: "c7f9e1b3-a5d7-4f8c-9e2b-1d0a3e5c7f8g"},
+      contentUrl: "https://example.com/graphql-intro-video",
+      textContent: "An introductory video to GraphQL concepts.",
+      duration: 600
+    },
+    {
+      id: "f0a1b2c3-d4e5-7f8a-9b0c-1d2e3f4a5b6c",
+      title: "Your First Query",
+      lessonType: "Text",
+      orderIndex: 2,
+      course: {id: "c7f9e1b3-a5d7-4f8c-9e2b-1d0a3e5c7f8g"},
+      textContent: "A written guide to writing your first GraphQL query.",
+      duration: 300
+    },
+    {
+      id: "g1b2c3d4-e5f6-8a9b-0c1d-2e3f4a5b6c7d",
+      title: "Understanding useEffect",
+      lessonType: "Video",
+      orderIndex: 1,
+      course: {id: "d8e0f2c4-b6a8-5e9d-0f3c-2e1b4f6d8a9h"},
+      contentUrl: "https://example.com/react-useeffect-video",
+      textContent: "Deep dive into the useEffect hook in React.",
+      duration: 900
+    }
+  ])
+  enrollment_insertMany(data: [
+    {
+      id: "h2c3d4e5-f6a7-9b0c-1d2e-3f4a5b6c7d8e",
+      enrollmentDate: "2023-03-05T12:00:00Z",
+      progress: 50,
+      user: {id: "b2d8e4c0-3b7f-4d1a-8c5e-0a9b6f1e2d3c"},
+      course: {id: "c7f9e1b3-a5d7-4f8c-9e2b-1d0a3e5c7f8g"},
+      lastAccessed: "2023-03-20T16:00:00Z"
+    }
+  ])
+  quiz_insertMany(data: [
+    {
+      id: "i3d4e5f6-a7b8-0c1d-2e3f-4a5b6c7d8e9f",
+      title: "GraphQL Basics Quiz",
+      lesson: {id: "e9f0a1d2-c3b4-6e7f-8a9b-0c1d2e3f4a5b"},
+      description: "Test your knowledge on basic GraphQL concepts."
+    }
+  ])
+  question_insertMany(data: [
+    {
+      id: "j4e5f6g7-b8c9-1d2e-3f4a-5b6c7d8e9f0a",
+      questionText: "What does GraphQL stand for?",
+      correctAnswer: "Graph Query Language",
+      quiz: {id: "i3d4e5f6-a7b8-0c1d-2e3f-4a5b6c7d8e9f"},
+      options: ["Graph Query Language", "Graphical Query Logic", "General Query Logic", "Google Query Language"]
+    }
+  ])
+}

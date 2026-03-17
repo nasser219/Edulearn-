@@ -1,0 +1,8 @@
+{
+  "accessToken": "84d005dab78bfe34aedee51e59f746fd321138edaf536a3a0888f58b516babcb",
+  "tenantURL": "https://d17.api.augmentcode.com/",
+  "scopes": [
+    "read",
+    "write"
+  ]
+}

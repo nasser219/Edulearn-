@@ -1,0 +1,51 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  bio: String
+  role: String
+}
+
+type Course @table {
+  title: String!
+  description: String!
+  createdAt: Timestamp!
+  creator: User
+  difficultyLevel: String
+  imageUrl: String
+  category: String
+  averageRating: Float
+}
+
+type Enrollment @table {
+  enrollmentDate: Timestamp!
+  progress: Int!
+  user: User
+  course: Course
+  completionDate: Timestamp
+  lastAccessed: Timestamp
+}
+
+type Lesson @table {
+  title: String!
+  lessonType: String!
+  orderIndex: Int!
+  course: Course
+  contentUrl: String
+  textContent: String
+  duration: Int
+}
+
+type Quiz @table {
+  title: String!
+  lesson: Lesson
+  description: String
+}
+
+type Question @table {
+  questionText: String!
+  correctAnswer: String!
+  quiz: Quiz
+  options: [String]
+}

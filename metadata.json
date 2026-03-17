@@ -1,0 +1,9 @@
+{
+  "name": "Educators Academy Learning Platform",
+  "description": "A production-ready educational platform for Egyptian centers featuring protected video streaming, quizzes, homework management, and anti-piracy systems.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

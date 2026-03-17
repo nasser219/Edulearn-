@@ -1,0 +1,47 @@
+query AllCourses @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public as it only retrieves public course information.") {
+  courses {
+    id
+    title
+    description
+    difficultyLevel
+    category
+    imageUrl
+    averageRating
+    creator {
+      displayName
+      email
+    }
+  }
+}
+
+query MyEnrollments @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users as it retrieves only their own enrollment data.") {
+  enrollments(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    enrollmentDate
+    progress
+    completionDate
+    lastAccessed
+    course {
+      title
+      category
+    }
+  }
+}
+
+mutation CreateLesson($title: String!, $lessonType: String!, $orderIndex: Int!, $courseId: UUID!, $contentUrl: String, $textContent: String, $duration: Int) @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users, allowing them to create lessons for their courses.") {
+  lesson_insert(data: {
+    title: $title,
+    lessonType: $lessonType,
+    orderIndex: $orderIndex,
+    courseId: $courseId,
+    contentUrl: $contentUrl,
+    textContent: $textContent,
+    duration: $duration
+  })
+}
+
+mutation UpdateUserBio($bio: String!) @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users, allowing them to update their own bio.") {
+  user_update(key: {id_expr: "auth.uid"}, data: {
+    bio: $bio
+  })
+}

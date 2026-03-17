@@ -1,0 +1,119 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["STUDENT", "TEACHER", "ADMIN"] },
+        "deviceIds": { "type": "array", "items": { "type": "string" } },
+        "isSuspended": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role", "isSuspended", "createdAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Educational course details",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "price": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "teacherId", "price", "createdAt"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Individual lesson within a course section",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["VIDEO", "PDF", "QUIZ", "HOMEWORK"] },
+        "contentUrl": { "type": "string" },
+        "duration": { "type": "string" },
+        "quizId": { "type": "string" },
+        "homeworkId": { "type": "string" },
+        "order": { "type": "integer" }
+      },
+      "required": ["courseId", "title", "type", "order"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Student enrollment in a course",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "progress": { "type": "number" },
+        "completedLessons": { "type": "array", "items": { "type": "string" } },
+        "enrolledAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "courseId", "progress", "enrolledAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Course purchase transaction",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "enum": ["INSTAPAY", "VODAFONE_CASH", "CARD"] },
+        "status": { "type": "string", "enum": ["PENDING", "SUCCESS", "FAILED"] },
+        "transactionId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "courseId", "amount", "method", "status", "createdAt"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Security and activity logs",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "eventType": { "type": "string" },
+        "details": { "type": "object" },
+        "ipAddress": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "eventType", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "courses/{courseId}": {
+      "schema": "Course",
+      "description": "Course catalog"
+    },
+    "courses/{courseId}/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Lessons within a course"
+    },
+    "enrollments/{enrollmentId}": {
+      "schema": "Enrollment",
+      "description": "Student course enrollments"
+    },
+    "payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payment records"
+    },
+    "activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Security event logs"
+    }
+  }
+}
