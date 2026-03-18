@@ -1015,7 +1015,16 @@ export default function App() {
           </div>
           <div className="pt-4 space-y-4">
              <Button variant="primary" className="w-full h-14 rounded-xl font-bold bg-red-600 hover:bg-red-700 border-none shadow-xl shadow-red-900/40">تواصل مع الدعم</Button>
-             <Button variant="ghost" className="w-full text-slate-500 font-bold hover:text-white transition-colors" onClick={logout}>تسجيل الخروج</Button>
+             <button 
+                onClick={logout} 
+                className="w-full h-14 rounded-[1.5rem] bg-white/10 backdrop-blur-xl border border-white/20 text-white font-black hover:bg-white/20 transition-all flex items-center justify-center gap-4 shadow-xl group overflow-hidden relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/10 to-mauve-accent/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-primary to-mauve-accent flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform relative z-10">
+                  <LogOut className="h-5 w-5 text-white" />
+                </div>
+                <span className="relative z-10">تسجيل الخروج</span>
+              </button>
           </div>
         </div>
       </div>
@@ -1024,10 +1033,12 @@ export default function App() {
 
 
   return (
-    <div className="min-h-screen flex flex-col no-select" dir="rtl" style={{
-      background: "linear-gradient(135deg, #c9d6ff, #e2c9f7, #ffd6cc)",
+    <div className="min-h-screen flex flex-col no-select relative" dir="rtl" style={{
       fontFamily: "-apple-system, 'SF Pro Display', sans-serif"
     }}>
+      {/* Dynamic Background Blobs */}
+      <div className="blob-bg" />
+      
       <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} onNavigate={setCurrentView} />
       
       <div className="flex-1 flex overflow-hidden text-right">

@@ -398,20 +398,20 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
         />
       </div>
 
-      {/* Right Side: List */}
-      <div className="w-full lg:w-80 bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 text-right">
-          <h3 className="font-bold text-sm">محتوى الكورس</h3>
-          <div className="mt-2 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 transition-all duration-1000" style={{ width: `${enrollment?.progress || 0}%` }} />
+      {/* Right Side: Content Sidebar with Bubble/Glass Theme */}
+      <div className="w-full lg:w-80 glass-mauve rounded-[2.5rem] flex flex-col overflow-hidden border border-white/10 shadow-2xl relative">
+        <div className="p-6 border-b border-white/10 bg-white/5 text-right">
+          <h3 className="text-white font-black text-base mb-3">محتوى الكورس</h3>
+          <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
+            <div className="h-full bg-brand-primary transition-all duration-1000 shadow-[0_0_15px_rgba(139,92,246,0.6)]" style={{ width: `${enrollment?.progress || 0}%` }} />
           </div>
-          <p className="text-[10px] text-slate-500 mt-1">تم إكمال {enrollment?.progress || 0}% • {enrollment?.completedLessons?.length || 0}/{allLessons.length} من الدروس</p>
+          <p className="text-[10px] text-white/50 font-bold mt-2 tracking-tight">تم إكمال {enrollment?.progress || 0}% • {enrollment?.completedLessons?.length || 0}/{allLessons.length} من الدروس</p>
         </div>
-        <div className="flex-1 overflow-y-auto font-sans">
+        <div className="flex-1 overflow-y-auto font-sans p-2 space-y-1 scrollbar-none">
           {course.sections?.map((section: any, sIdx: number) => (
             <div key={sIdx}>
-              <div className="px-4 py-2 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-y border-slate-100 text-right">{section.title}</div>
-              <div className="divide-y divide-slate-50">
+              <div className="px-5 py-3 text-[11px] font-black text-white/40 uppercase tracking-widest border-y border-white/5 bg-white/5 text-right mt-2 first:mt-0 rounded-xl mx-2 mb-1">{section.title}</div>
+              <div className="space-y-1 mx-2">
                 {section.lessons.map((lesson: any) => {
                   const globalIdx = allLessons.findIndex((l: any) => l.id === lesson.id);
                   const isActive = activeLessonIdx === globalIdx;
@@ -422,23 +422,27 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                       disabled={isLocked} 
                       onClick={() => setActiveLessonIdx(globalIdx)} 
                       className={cn(
-                        "w-full flex items-start gap-3 p-4 text-right transition-colors", 
-                        isActive ? "bg-brand-primary/5" : "hover:bg-slate-50", 
-                        isLocked && "opacity-50 cursor-not-allowed"
+                        "w-full flex items-center gap-4 p-4 text-right transition-all duration-300 rounded-[1.5rem] group relative", 
+                        isActive 
+                          ? "glass-item-active text-white scale-[1.02] shadow-xl z-10" 
+                          : "text-white/60 hover:text-white hover:bg-white/5", 
+                        isLocked && "opacity-40 cursor-not-allowed grayscale"
                       )}
                     >
-                      <div className="mt-0.5">
+                      <div className="shrink-0">
                         {enrollment?.completedLessons?.includes(lesson.id) ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <CheckCircle2 className="h-5 w-5 text-brand-primary drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                         ) : isLocked ? (
-                          <Lock className="h-4 w-4 text-slate-400" />
+                          <Lock className="h-5 w-5 text-white/30" />
                         ) : (
-                          <Play className={cn("h-4 w-4", isActive ? "text-brand-primary" : "text-slate-400")} />
+                          <Play className={cn("h-5 w-5", isActive ? "text-white animate-pulse" : "text-white/40 group-hover:text-white")} />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className={cn("text-xs font-bold", isActive ? "text-brand-primary" : "text-slate-700")}>{lesson.title}</p>
-                        {lesson.duration && <p className="text-[10px] text-slate-400 mt-0.5 leading-none">{lesson.duration}</p>}
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-[0.85rem] font-black tracking-tight leading-tight", isActive ? "text-white" : "text-current")}>
+                          {lesson.title}
+                        </p>
+                        {lesson.duration && <p className="text-[10px] text-white/40 font-bold mt-1 leading-none">{lesson.duration}</p>}
                       </div>
                     </button>
                   );

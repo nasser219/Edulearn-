@@ -13,7 +13,9 @@ import {
   MessageCircle,
   BrainCircuit,
   Search,
-  Bell
+  Bell,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useEducatorsAuth } from '../auth/AuthProvider';
@@ -115,113 +117,90 @@ export const Sidebar = ({ className, onNavigate, currentView }: { className?: st
   };
 
   return (
-    <div className={cn("hidden lg:flex flex-col h-[calc(100vh-5rem)] sticky top-[5rem] z-40 p-[1.5rem] pr-0 no-select transition-all duration-300", isCollapsed ? "w-[8rem]" : "w-[23.75rem]", className)} dir="rtl">
+    <div className={cn("hidden lg:flex flex-col h-[calc(100vh-1rem)] sticky top-[0.5rem] z-40 p-1 pr-0 no-select transition-all duration-200 will-change-[width]", isCollapsed ? "w-[7rem]" : "w-[28.5rem]", className)} dir="rtl">
       <aside 
         className={cn(
-          "h-full rounded-[1.75rem] flex flex-col relative border border-[rgba(255,255,255,0.6)] shadow-[inset_0_0_20px_rgba(255,255,255,0.2),0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-300",
-          isCollapsed ? "w-[5rem]" : "w-[21.25rem]",
-          "before:content-[''] before:absolute before:-top-20 before:-right-20 before:w-64 before:h-64 before:bg-blue-400/20 before:rounded-full before:blur-[80px] before:-z-10",
-          "after:content-[''] after:absolute after:-bottom-20 after:-left-20 after:w-64 after:h-64 after:bg-pink-400/20 after:rounded-full after:blur-[80px] after:-z-10"
+          "h-full rounded-[2.5rem] flex flex-col relative transition-all duration-300 overflow-visible glass-mauve shadow-[0_20px_50px_rgba(139,92,246,0.3)] will-change-transform",
+          isCollapsed ? "w-[5rem]" : "w-[26.5rem]"
         )}
         style={{
-          background: 'rgba(255,255,255,0.72)',
-          backdropFilter: 'blur(32px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-          fontFamily: "-apple-system, 'SF Pro Display', sans-serif",
-          overflow: 'visible'
+          fontFamily: "-apple-system, 'SF Pro Display', 'Inter', sans-serif"
         }}
       >
-        {/* Floating Arrow Toggle */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -left-[1.375rem] top-1/4 w-[2.75rem] h-[2.75rem] bg-white rounded-full border border-slate-200 shadow-md flex items-center justify-center text-slate-400 hover:text-blue-500 hover:scale-110 active:scale-95 transition-all z-20"
-          style={{ transform: `rotate(${isCollapsed ? '180deg' : '0deg'})` }}
-          aria-label={isCollapsed ? "توسيع القائمة" : "طي القائمة"}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-
-        {/* Top Bar: Bell + Search */}
-        <div className={cn("px-6 pt-8 pb-4 space-y-6 transition-all", isCollapsed && "px-2")}>
-          <div className="flex items-center justify-between">
-            {!isCollapsed && <h1 className="text-2xl font-black text-slate-900 tracking-tight transition-all">التربويين</h1>}
-            <div className={cn("relative group", isCollapsed && "mx-auto")}>
-              {unreadCount > 0 && (
-                <div className="absolute -top-1 -left-1 w-5 h-5 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white z-10 transition-transform">
-                  {unreadCount}
-                </div>
-              )}
-              <div 
-                className="p-2.5 bg-white/50 rounded-full border border-white/50 shadow-sm group-hover:bg-white transition-colors cursor-pointer"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <Bell className="h-5 w-5 text-slate-600" />
+        {/* Header/Brand Section */}
+        <div className={cn("px-8 pt-6 pb-2 flex flex-col gap-6 transition-all duration-300", isCollapsed && "px-0 items-center")}>
+          <div className={cn("flex items-center justify-between", isCollapsed ? "flex-col gap-6" : "flex-row")}>
+            <div className={cn("flex items-center gap-5", isCollapsed && "flex-col")}>
+              <div className="h-16 w-16 bg-white/20 backdrop-blur-xl rounded-[1.5rem] border border-white/20 flex items-center justify-center shadow-2xl shrink-0 group hover:scale-110 transition-transform cursor-pointer">
+                <GraduationCap className="h-9 w-9 text-white" />
               </div>
-
-              {/* Notification Dropdown/Panel */}
-              {showNotifications && (
-                <div className="absolute top-14 right-0 w-80 h-[500px] z-[200] animate-in slide-in-from-top-4 duration-300">
-                  <NotificationList 
-                    onClose={() => setShowNotifications(false)} 
-                    onNavigate={onNavigate} 
-                  />
-                </div>
+              {!isCollapsed && (
+                <h1 className="text-4xl font-black font-black-force text-white tracking-tight text-shadow-sm">التربويين</h1>
               )}
             </div>
+
+            {/* Neon White Toggle Button - "Inside" the sidebar */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className={cn(
+                "h-12 w-12 rounded-2xl border-2 border-white/60 bg-white/5 flex items-center justify-center transition-all active:scale-90 group/toggle z-50",
+                "shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] hover:bg-white/10 hover:border-white",
+                isCollapsed && "mt-2"
+              )}
+              aria-label={isCollapsed ? "توسيع القائمة" : "طي القائمة"}
+            >
+              {isCollapsed ? (
+                <ChevronLeft className="h-7 w-7 text-white animate-pulse" />
+              ) : (
+                <ChevronRight className="h-7 w-7 text-white" />
+              )}
+            </button>
           </div>
+
           
-          <div className={cn("relative group transition-all duration-300 overflow-hidden", isCollapsed ? "h-0 opacity-0" : "h-11 opacity-100")}>
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+          <div className={cn("relative group transition-all duration-200 overflow-hidden", isCollapsed ? "h-0 opacity-0" : "h-11 opacity-100 px-1")}>
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-white transition-colors" />
             <input 
               type="text" 
               placeholder="بحث سريع..." 
-              className="w-full h-11 pr-12 pl-6 bg-white/40 border border-white/60 rounded-full text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:bg-white/80 outline-none transition-all placeholder:text-slate-400" 
+              className="w-full h-11 pr-12 pl-6 bg-white/10 border border-white/20 rounded-xl text-base font-bold text-white focus:bg-white/20 outline-none transition-all placeholder:text-white/40" 
             />
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-none">
+        <nav className="flex-1 px-0 py-4 space-y-1 overflow-y-auto scrollbar-none overflow-x-hidden">
           {filteredItems.map((item, index) => (
             <button
               key={item.label}
               onClick={() => onNavigate?.(item.viewName)}
               className={cn(
-                "w-full flex items-center gap-4 p-3 rounded-[18px] transition-all duration-300 relative group",
-                "hover:scale-[1.02] active:scale-[0.98]",
+                "w-full flex items-center gap-4 py-2 px-8 relative group transition-all duration-200 will-change-[background,transform] active:scale-[0.98]",
                 item.isActive 
-                  ? "bg-white shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-white" 
-                  : "hover:bg-white/40 border border-transparent hover:border-white/60",
-                isCollapsed && "justify-center p-2"
+                  ? "glass-item-active text-white rounded-l-[2rem] ml-4 scale-105" 
+                  : "text-white/70 hover:text-white hover:bg-white/5",
+                isCollapsed && "justify-center px-0 h-[3.5rem] w-[3.5rem] mx-auto rounded-2xl ml-0",
+                item.isActive && isCollapsed && "glass-item-active"
               )}
             >
-              <div className={cn(
-                "h-12 w-12 rounded-[14px] flex items-center justify-center shrink-0 transition-all group-hover:scale-110 shadow-sm",
-                item.isActive ? getIconColor(index) : "bg-white/80 border border-white group-hover:bg-white"
-              )}>
-                <item.icon className={cn(
-                  "h-6 w-6 transition-colors",
-                  item.isActive ? "text-white" : "text-slate-500"
-                )} />
-              </div>
+              {/* Modern Visual Link Connection */}
+              {item.isActive && !isCollapsed && (
+                <>
+                  <div className="absolute -top-6 left-0 w-6 h-6 bg-transparent shadow-[4px_4px_0_0_rgba(255,255,255,0.2)] rounded-br-full pointer-events-none" />
+                  <div className="absolute -bottom-6 left-0 w-6 h-6 bg-transparent shadow-[4px_-4px_0_0_rgba(255,255,255,0.2)] rounded-tr-full pointer-events-none" />
+                </>
+              )}
+
+              <item.icon className={cn(
+                "h-6 w-6 shrink-0 transition-all duration-200",
+                item.isActive ? "text-white scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/70 group-hover:text-white"
+              )} />
               
-              <div className={cn(
-                "flex-1 text-right overflow-hidden transition-all duration-300",
-                isCollapsed ? "w-0 opacity-0" : "opacity-100"
-              )}>
-                <div className="flex items-center justify-between whitespace-nowrap">
-                  <p className={cn(
-                    "text-sm font-black tracking-tight transition-colors",
-                    item.isActive ? "text-slate-900" : "text-slate-700 font-bold"
-                  )}>{item.label}</p>
-                  <span className="text-[10px] font-bold text-slate-300">12:45</span>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate leading-tight whitespace-nowrap">
-                  {getSubtext(item.label)}
-                </p>
-              </div>
+              {!isCollapsed && (
+                <span className="text-[1.1rem] font-black font-black-force tracking-tight whitespace-nowrap overflow-hidden">
+                  {item.label}
+                </span>
+              )}
 
               {/* Tooltip for collapsed state */}
               {isCollapsed && (
@@ -234,42 +213,32 @@ export const Sidebar = ({ className, onNavigate, currentView }: { className?: st
           ))}
         </nav>
         
-        {/* Help Center Glass Box */}
-        <div className={cn("p-6 transition-all", isCollapsed && "px-2")}>
-          <div className="bg-white/40 border border-white rounded-[22px] p-5 shadow-sm relative overflow-hidden group">
-            <div className="relative z-10">
-              <div className={cn("flex items-center gap-4 mb-3", isCollapsed && "justify-center")}>
-                <div className="h-10 w-10 rounded-xl bg-blue-500 shadow-lg shadow-blue-500/20 flex items-center justify-center shrink-0">
-                  <HelpCircle className="h-6 w-6 text-white" />
+        {/* Upgrade/Help Box */}
+        <div className={cn("p-3 mt-auto transition-all", isCollapsed && "px-2")}>
+          {!isCollapsed ? (
+            <div className="bg-white/10 rounded-2xl p-4 border border-white/10 relative overflow-hidden group">
+              <div className="relative z-10">
+                <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-2">
+                  <BrainCircuit className="h-6 w-6 text-white" />
                 </div>
-                {!isCollapsed && (
-                  <div>
-                    <p className="text-xs font-black text-slate-900 leading-none">مركز المساعدة</p>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">جاهزون لخدمتك ٢٤/٧</p>
-                  </div>
-                )}
-              </div>
-              {!isCollapsed ? (
+                <h3 className="text-xs font-black text-white mb-0.5">طور حسابك الآن!</h3>
+                <p className="text-[9px] text-white/60 font-bold mb-2 leading-tight">احصل على وصول كامل لجميع المميزات المتقدمة والتحليلات الذكية.</p>
                 <Button 
-                  variant="outline" 
-                  className="w-full bg-white/80 border-white text-blue-600 font-black hover:bg-blue-600 hover:text-white rounded-[0.875rem] transition-all h-[2.75rem] text-xs shadow-sm hover:shadow-md"
+                  className="w-full bg-white/20 backdrop-blur-xl text-white border border-white/20 font-black hover:bg-white/30 py-2.5 rounded-2xl h-auto text-xs shadow-xl"
                   onClick={() => whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')}
                 >
-                  تواصل واتساب
+                  ترقية الحساب
                 </Button>
-              ) : (
-                <button 
-                  className="w-full h-[2.75rem] flex items-center justify-center bg-white/80 rounded-xl text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                  onClick={() => whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')}
-                  aria-label="تواصل واتساب"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </button>
-              )}
+              </div>
             </div>
-            {/* Soft decorative blob */}
-            <div className="absolute -left-2 -bottom-2 w-12 h-12 bg-blue-400/10 rounded-full blur-lg group-hover:scale-150 transition-transform"></div>
-          </div>
+          ) : (
+            <button 
+              className="w-12 h-12 flex items-center justify-center bg-white/10 rounded-xl text-white hover:bg-white/20 transition-all mx-auto"
+              onClick={() => whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')}
+            >
+              <MessageCircle className="h-6 w-6" />
+            </button>
+          )}
         </div>
       </aside>
     </div>

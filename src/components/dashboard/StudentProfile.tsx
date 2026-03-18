@@ -42,10 +42,10 @@ const ProfileMenuItem = ({ icon: Icon, label, onClick, className, extra }: Profi
     )}
   >
     <div className="flex items-center gap-4">
-      <div className="bg-slate-50 p-2 rounded-xl text-slate-400 group-hover:text-brand-primary transition-colors">
+      <div className="h-12 w-12 bg-white/20 backdrop-blur-xl rounded-xl text-slate-400 group-hover:text-brand-primary group-hover:bg-brand-primary/10 border border-slate-100 transition-all flex items-center justify-center">
         <Icon className="h-6 w-6" />
       </div>
-      <span className="font-bold text-slate-700">{label}</span>
+      <span className="font-black text-slate-700">{label}</span>
     </div>
     <div className="flex items-center gap-2">
       {extra}
@@ -203,7 +203,12 @@ export const StudentProfile = () => {
             setIsEditModalOpen(true);
           }}
         />
-        {/* ... */}
+        <ProfileMenuItem 
+          icon={LogOut} 
+          label="تسجيل الخروج" 
+          onClick={logout}
+          className="border-red-50/50 hover:bg-red-50/30"
+        />
       </div>
 
       {/* Edit Data Modal */}
