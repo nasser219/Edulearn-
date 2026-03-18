@@ -7,16 +7,16 @@
   --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
   --font-brand: "Reem Kufi", "Lalezar", cursive;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  
+
   --color-brand-primary: #8b5cf6;
   --color-brand-secondary: #fcd34d;
   --color-brand-accent: #a78bfa;
   --color-brand-mint: #10b981;
-  
+
   --radius-xl: 1.5rem;
   --radius-2xl: 2rem;
   --radius-3xl: 3rem;
-  
+
   --color-mauve-primary: #8b5cf6;
   --color-mauve-secondary: #a78bfa;
   --color-mauve-accent: #c084fc;
@@ -32,7 +32,7 @@
   .bg-glass {
     @apply bg-white/70 backdrop-blur-md border border-white/20;
   }
-  
+
   .glass-mauve {
     @apply bg-purple-900/40 backdrop-blur-2xl border border-white/10 shadow-2xl;
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -42,22 +42,22 @@
     @apply bg-white/20 backdrop-blur-md border border-white/30 shadow-lg;
     box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1);
   }
-  
+
   .shadow-premium {
     box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.2);
   }
 
   .liquid-shadow {
-    box-shadow: 
+    box-shadow:
       0 10px 15px -3px rgba(0, 0, 0, 0.1),
       0 4px 6px -2px rgba(0, 0, 0, 0.05),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.06);
   }
-  
+
   .text-shadow-sm {
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
   }
-  
+
   .blob-bg {
     position: fixed;
     width: 100vw;
@@ -68,7 +68,7 @@
     background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #f5f3ff 100%);
     overflow: hidden;
   }
-  
+
   .blob-bg::before {
     content: '';
     position: absolute;
@@ -100,8 +100,13 @@
   }
 
   @keyframes blobMove {
-    from { transform: translate(0, 0) scale(1); }
-    to { transform: translate(100px, 50px) scale(1.1); }
+    from {
+      transform: translate(0, 0) scale(1);
+    }
+
+    to {
+      transform: translate(100px, 50px) scale(1.1);
+    }
   }
 }
 
@@ -149,9 +154,20 @@
 }
 
 @keyframes logoPulse {
-  0% { transform: scale(1) rotate(-3deg); filter: drop-shadow(0 0 0 rgba(0, 162, 255, 0)); }
-  50% { transform: scale(1.05) rotate(-2deg); filter: drop-shadow(0 0 15px rgba(0, 162, 255, 0.4)); }
-  100% { transform: scale(1) rotate(-3deg); filter: drop-shadow(0 0 0 rgba(0, 162, 255, 0)); }
+  0% {
+    transform: scale(1) rotate(-3deg);
+    filter: drop-shadow(0 0 0 rgba(0, 162, 255, 0));
+  }
+
+  50% {
+    transform: scale(1.05) rotate(-2deg);
+    filter: drop-shadow(0 0 15px rgba(0, 162, 255, 0.4));
+  }
+
+  100% {
+    transform: scale(1) rotate(-3deg);
+    filter: drop-shadow(0 0 0 rgba(0, 162, 255, 0));
+  }
 }
 
 .logo-animate {
@@ -164,14 +180,98 @@
 
 /* Global: Hide scrollbars but keep functionality */
 * {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 *::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, and Opera */
+  display: none;
+  /* Chrome, Safari, and Opera */
 }
 
 .logo-interactive:hover {
   @apply scale-110 -rotate-6 shadow-2xl shadow-brand-primary/40;
+}
+
+/* ============================================================
+   أضف الكود ده في آخر ملف src/index.css
+   يحل مشكلة الجداول المقطوعة على الموبايل
+   ============================================================ */
+
+/* Table overflow fix — mobile responsive */
+.overflow-x-auto,
+[class*="overflow-x-auto"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Force all tables to scroll horizontally on small screens */
+table {
+  min-width: 100%;
+}
+
+/* Wrap any table that's not already wrapped */
+.table-wrapper,
+div:has(> table) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Fix text overflow in table cells */
+td,
+th {
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Allow wrapping only for specific columns that need it */
+td.allow-wrap,
+th.allow-wrap {
+  white-space: normal;
+  min-width: 120px;
+}
+
+/* Global fix: prevent ANY element from overflowing the screen width */
+.max-w-7xl {
+  overflow-x: hidden;
+}
+
+/* Cards and containers — prevent horizontal overflow */
+.rounded-3xl,
+.rounded-2xl,
+.rounded-xl {
+  max-width: 100%;
+}
+
+/* Fix flex items that might overflow */
+.flex {
+  min-width: 0;
+}
+
+/* Fix grid overflow on mobile */
+@media (max-width: 640px) {
+  .grid {
+    overflow-x: hidden;
+  }
+
+  /* Reduce padding on mobile for more space */
+  .p-8 {
+    padding: 1rem;
+  }
+
+  /* Make sure text doesn't overflow its container */
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  label {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+  }
 }
