@@ -1,25 +1,29 @@
 import { 
   LayoutDashboard, 
   BookOpen, 
-  FileText, 
+  FileText,
   GraduationCap, 
+  Users, 
   Settings, 
-  ShieldAlert,
-  Users,
+  MessageCircle, 
+  ShieldAlert, 
+  BrainCircuit, 
+  Search, 
+  Bell, 
+  ChevronLeft, 
+  ChevronRight, 
+  X,
   CreditCard,
   BarChart3,
   Megaphone,
-  HelpCircle,
-  MessageCircle,
-  BrainCircuit,
-  Search,
-  Bell,
-  ChevronLeft,
-  ChevronRight
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useEducatorsAuth } from '../auth/AuthProvider';
-import { Button } from '../ui/Button';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { useEffect, useState } from 'react';
+import { useNotifications } from '../../hooks/useNotifications';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'لوحة التحكم', href: '#', active: true, roles: ['STUDENT', 'TEACHER', 'ADMIN'] },
@@ -39,208 +43,469 @@ const navItems = [
   { icon: Settings, label: 'إعدادات الحساب', href: '#', roles: ['STUDENT', 'TEACHER', 'ADMIN'] },
 ];
 
-import { collection, doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { useEffect, useState } from 'react';
-import { useNotifications } from '../../hooks/useNotifications';
-import { NotificationList } from '../notifications/NotificationList';
+const viewMap: Record<string, string> = {
+  'لوحة التحكم': 'DASHBOARD',
+  'تصفح المدرسين': 'TEACHERS',
+  'دوراتي التعليمية': 'COURSES',
+  'إدارة الكورسات': 'MANAGE_COURSES',
+  'المهام والواجبات': 'HOMEWORK',
+  'بنك الامتحانات': 'QUIZZES',
+  'قائمة الطلاب': 'STUDENTS',
+  'تقارير الأداء': 'REPORTS',
+  'تحليل الأداء الذكي': 'PERFORMANCE_AI',
+  'سجل المدفوعات': 'PAYMENTS',
+  'الإعلانات المستهدفة': 'ANNOUNCEMENTS',
+  'مركز الإشعارات': 'NOTIFICATION_CENTER',
+  'مركز الأمان': 'SECURITY',
+  'الرسائل': 'MESSAGES',
+  'إعدادات الحساب': 'SETTINGS',
+};
 
-export const Sidebar = ({ className, onNavigate, currentView }: { className?: string, onNavigate?: (view: any) => void, currentView?: string }) => {
+const itemGradients = [
+  'from-blue-400 to-blue-600',
+  'from-emerald-400 to-teal-600',
+  'from-rose-400 to-pink-600',
+  'from-amber-400 to-orange-500',
+  'from-indigo-400 to-violet-600',
+  'from-cyan-400 to-sky-600',
+  'from-purple-400 to-fuchsia-600',
+  'from-lime-400 to-green-500',
+];
+
+const SidebarBackground = () => (
+  <div className="absolute inset-0 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 bg-gradient-to-b from-[#1a0533] via-[#2d1058] to-[#1a0533]" />
+    <motion.div
+      className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-30"
+      style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }}
+      animate={{ scale: [1, 1.2, 1], opacity: [0.25, 0.4, 0.25] }}
+      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <motion.div
+      className="absolute bottom-20 -left-16 w-56 h-56 rounded-full opacity-20"
+      style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }}
+      animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.3, 0.15] }}
+      transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+    />
+    <div
+      className="absolute inset-0 opacity-[0.04]"
+      style={{
+        backgroundImage: `linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)`,
+        backgroundSize: '40px 40px',
+      }}
+    />
+    <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+  </div>
+);
+
+const NavItem = ({
+  item,
+  index,
+  isCollapsed,
+  onNavigate,
+}: {
+  item: any;
+  index: number;
+  isCollapsed: boolean;
+  onNavigate?: (view: string) => void;
+}) => {
+  const gradient = itemGradients[index % itemGradients.length];
+
+  return (
+    <motion.button
+      key={item.label}
+      onClick={() => onNavigate?.(item.viewName)}
+      className={cn(
+        'w-full relative flex items-center gap-3 py-2.5 transition-all duration-200 group select-none',
+        isCollapsed
+          ? 'justify-center px-0 mx-auto w-12 h-12 rounded-2xl'
+          : 'px-4 rounded-2xl mx-2',
+        item.isActive
+          ? 'bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_24px_rgba(0,0,0,0.25)]'
+          : 'hover:bg-white/8'
+      )}
+      whileHover={{ scale: item.isActive ? 1 : 1.02, x: item.isActive ? 0 : -2 }}
+      whileTap={{ scale: 0.97 }}
+      layout
+    >
+      {item.isActive && !isCollapsed && (
+        <motion.div
+          layoutId="activeIndicator"
+          className="absolute right-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-purple-300 to-pink-400"
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        />
+      )}
+
+      <div
+        className={cn(
+          'shrink-0 flex items-center justify-center rounded-xl transition-all duration-200',
+          isCollapsed ? 'h-10 w-10' : 'h-9 w-9',
+          item.isActive
+            ? `bg-gradient-to-br ${gradient} shadow-lg shadow-purple-900/30`
+            : 'bg-white/10 group-hover:bg-white/15'
+        )}
+      >
+        <item.icon
+          className={cn(
+            'transition-all duration-200',
+            item.isActive ? 'text-white' : 'text-white/60 group-hover:text-white'
+          )}
+          style={{ width: isCollapsed ? 20 : 18, height: isCollapsed ? 20 : 18 }}
+        />
+      </div>
+
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.span
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.15 }}
+            className={cn(
+              'text-sm font-bold tracking-tight whitespace-nowrap overflow-hidden text-right flex-1',
+              item.isActive ? 'text-white' : 'text-white/60 group-hover:text-white/90'
+            )}
+          >
+            {item.label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+
+      {item.badge && !isCollapsed && (
+        <span className="shrink-0 text-[10px] font-black bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full px-2 py-0.5 shadow-md">
+          {item.badge}
+        </span>
+      )}
+      {item.badge && isCollapsed && (
+        <span className="absolute top-1 right-1 w-2 h-2 bg-rose-400 rounded-full border border-[#2d1058]" />
+      )}
+
+      {isCollapsed && (
+        <motion.div
+          initial={{ opacity: 0, x: 8 }}
+          whileHover={{ opacity: 1, x: 0 }}
+          className="absolute right-full mr-3 bg-slate-900/95 backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-lg pointer-events-none z-[200] whitespace-nowrap shadow-xl border border-white/10"
+        >
+          {item.label}
+          <div className="absolute top-1/2 -right-1 -translate-y-1/2 border-[4px] border-transparent border-l-slate-900/95" />
+        </motion.div>
+      )}
+    </motion.button>
+  );
+};
+
+export const Sidebar = ({
+  className,
+  onNavigate,
+  currentView,
+  isOpen,
+  onClose,
+}: {
+  className?: string;
+  onNavigate?: (view: any) => void;
+  currentView?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
+}) => {
   const { profile, isAdmin, isStudent } = useEducatorsAuth();
   const { unreadCount } = useNotifications();
   const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_collapsed');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', JSON.stringify(isCollapsed));
+  }, [isCollapsed]);
 
   useEffect(() => {
     return onSnapshot(doc(db, 'settings', 'system'), (snap) => {
-      if (snap.exists()) {
-        setWhatsappNumber(snap.data().whatsappNumber || '');
-      }
+      if (snap.exists()) setWhatsappNumber(snap.data().whatsappNumber || '');
     });
   }, []);
-  
-  const filteredItems = navItems.map(item => {
-    let viewName: any = 'DASHBOARD';
-    switch (item.label) {
-      case 'لوحة التحكم': viewName = 'DASHBOARD'; break;
-      case 'تصفح المدرسين': viewName = 'TEACHERS'; break;
-      case 'دوراتي التعليمية': viewName = 'COURSES'; break;
-      case 'إدارة الكورسات': viewName = 'MANAGE_COURSES'; break;
-      case 'المهام والواجبات': viewName = 'HOMEWORK'; break;
-      case 'بنك الامتحانات': viewName = 'QUIZZES'; break;
-      case 'قائمة الطلاب': viewName = 'STUDENTS'; break;
-      case 'تقارير الأداء': viewName = isStudent() ? 'STUDENT_RESULTS' : 'REPORTS'; break;
-      case 'تحليل الأداء الذكي': viewName = 'PERFORMANCE_AI'; break;
-      case 'سجل المدفوعات': viewName = 'PAYMENTS'; break;
-      case 'الإعلانات المستهدفة': viewName = 'ANNOUNCEMENTS'; break;
-      case 'مركز الإشعارات': viewName = 'NOTIFICATION_CENTER'; break;
-      case 'مركز الأمان': viewName = 'SECURITY'; break;
-      case 'الرسائل': viewName = 'MESSAGES'; break;
-      case 'إعدادات الحساب': viewName = 'SETTINGS'; break;
-    }
-    
-    const isActive = currentView === viewName;
-    const label = item.label === 'دوراتي التعليمية' ? 'الكورسات' : item.label;
 
-    return { ...item, label, isActive, viewName };
-  }).filter(item => {
-    if (isAdmin()) return true;
-    return profile ? item.roles.includes(profile.role) : false;
-  });
+  const filteredItems = navItems
+    .map((item) => {
+      const viewName: string =
+        item.label === 'تقارير الأداء'
+          ? isStudent()
+            ? 'STUDENT_RESULTS'
+            : 'REPORTS'
+          : viewMap[item.label] || 'DASHBOARD';
 
-  // Mock data for subtitles and timestamps to fit the iOS style
-  const getSubtext = (label: string) => {
-    switch (label) {
-      case 'لوحة التحكم': return 'نظرة عامة على الإحصائيات';
-      case 'تصفح المدرسين': return 'ابحث عن معلمك المفضل';
-      case 'الكورسات': return 'تابع تقدمك في الدورات';
-      case 'إدارة الكورسات': return 'إضافة وتعديل المحتوى';
-      case 'المهام والواجبات': return 'تم تسليم ٥ مهام جديدة';
-      case 'بنك الامتحانات': return 'اختبارات تقييمية شاملة';
-      case 'قائمة الطلاب': return 'متابعة سجلات حضور الطلاب';
-      case 'تقارير الأداء': return 'تحليل مفصل لمستوى التقدم';
-      case 'تحليل الأداء الذكي': return 'توقعات الذكاء الاصطناعي';
-      case 'سجل المدفوعات': return 'الفواتير والاشتراكات النشطة';
-      case 'الإعلانات المستهدفة': return 'إدارة الحملات الإعلانية';
-      case 'مركز الإشعارات': return '٣ تنبيهات غير مقروءة';
-      case 'مركز الأمان': return 'حماية الحساب والبيانات';
-      case 'الرسائل': return 'محادثات فورية مع الطلاب';
-      case 'إعدادات الحساب': return 'الملف الشخصي وكلمة المرور';
-      default: return 'إدارة محتوى المنصة';
-    }
-  };
+      const displayLabel = item.label === 'دوراتي التعليمية' ? 'الكورسات' : item.label;
+      const isActive = currentView === viewName;
+      const badge = item.label === 'مركز الإشعارات' && unreadCount > 0 ? unreadCount : undefined;
 
-  const getIconColor = (index: number) => {
-    const iconColors = ['bg-blue-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500', 'bg-indigo-500', 'bg-violet-500'];
-    return iconColors[index % iconColors.length];
-  };
+      return { ...item, label: displayLabel, isActive, viewName, badge };
+    })
+    .filter((item) => {
+      const roleMatch = isAdmin()
+        ? true
+        : profile
+        ? item.roles.includes(profile.role)
+        : false;
 
-  return (
-    <div className={cn("hidden lg:flex flex-col h-[calc(100vh-1rem)] sticky top-[0.5rem] z-40 p-1 pr-0 no-select transition-all duration-200 will-change-[width]", isCollapsed ? "w-[7rem]" : "w-[28.5rem]", className)} dir="rtl">
-      <aside 
-        className={cn(
-          "h-full rounded-[2.5rem] flex flex-col relative transition-all duration-300 overflow-visible glass-mauve shadow-[0_20px_50px_rgba(139,92,246,0.3)] will-change-transform",
-          isCollapsed ? "w-[5rem]" : "w-[26.5rem]"
-        )}
-        style={{
-          fontFamily: "-apple-system, 'SF Pro Display', 'Inter', sans-serif"
-        }}
-      >
-        {/* Header/Brand Section */}
-        <div className={cn("px-8 pt-6 pb-2 flex flex-col gap-6 transition-all duration-300", isCollapsed && "px-0 items-center")}>
-          <div className={cn("flex items-center justify-between", isCollapsed ? "flex-col gap-6" : "flex-row")}>
-            <div className={cn("flex items-center gap-5", isCollapsed && "flex-col")}>
-              <div className="h-16 w-16 bg-white/20 backdrop-blur-xl rounded-[1.5rem] border border-white/20 flex items-center justify-center shadow-2xl shrink-0 group hover:scale-110 transition-transform cursor-pointer">
-                <GraduationCap className="h-9 w-9 text-white" />
-              </div>
-              {!isCollapsed && (
-                <h1 className="text-4xl font-black font-black-force text-white tracking-tight text-shadow-sm">التربويين</h1>
+      const searchMatch =
+        !searchQuery ||
+        item.label.includes(searchQuery) ||
+        item.label.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return roleMatch && searchMatch;
+    });
+
+  const sidebarContent = (
+    <aside
+      className="h-full flex flex-col relative overflow-hidden rounded-[2rem] lg:rounded-[2.5rem]"
+      style={{ fontFamily: "-apple-system, 'SF Pro Display', 'Tajawal', 'Cairo', sans-serif" }}
+      dir="rtl"
+    >
+      <SidebarBackground />
+
+      {/* Header */}
+      <div className={cn('relative z-10 pt-4 pb-3', isCollapsed ? 'px-2' : 'px-4 sm:px-5')}>
+        <div className="flex items-center justify-between mb-4">
+          <div className={cn('flex items-center gap-3', isCollapsed && 'justify-center w-full')}>
+            <motion.div
+              whileHover={{ rotate: -5, scale: 1.05 }}
+              className={cn(
+                'flex items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400/30 to-indigo-500/30 border border-white/20 backdrop-blur-xl shadow-2xl shrink-0',
+                isCollapsed ? 'h-11 w-11' : 'h-12 w-12'
               )}
-            </div>
+            >
+              <GraduationCap
+                style={{ width: isCollapsed ? 22 : 26, height: isCollapsed ? 22 : 26 }}
+                className="text-white"
+              />
+            </motion.div>
 
-            {/* Neon White Toggle Button - "Inside" the sidebar */}
-            <button
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col text-right overflow-hidden"
+                >
+                  <span className="text-lg font-black text-white tracking-tight whitespace-nowrap">
+                    التربويين
+                  </span>
+                  <span className="text-[9px] font-bold text-white/40 tracking-widest uppercase whitespace-nowrap">
+                    EduLearn DRM v3.0
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Desktop collapse toggle */}
+          {!isOpen && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => setIsCollapsed(!isCollapsed)}
               className={cn(
-                "h-12 w-12 rounded-2xl border-2 border-white/60 bg-white/5 flex items-center justify-center transition-all active:scale-90 group/toggle z-50",
-                "shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.6)] hover:bg-white/10 hover:border-white",
-                isCollapsed && "mt-2"
+                'hidden lg:flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10',
+                isCollapsed && 'mx-auto mt-1'
               )}
-              aria-label={isCollapsed ? "توسيع القائمة" : "طي القائمة"}
             >
               {isCollapsed ? (
-                <ChevronLeft className="h-7 w-7 text-white animate-pulse" />
+                <ChevronLeft className="h-4 w-4" />
               ) : (
-                <ChevronRight className="h-7 w-7 text-white" />
+                <ChevronRight className="h-4 w-4" />
               )}
-            </button>
-          </div>
+            </motion.button>
+          )}
 
-          
-          <div className={cn("relative group transition-all duration-200 overflow-hidden", isCollapsed ? "h-0 opacity-0" : "h-11 opacity-100 px-1")}>
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 group-focus-within:text-white transition-colors" />
-            <input 
-              type="text" 
-              placeholder="بحث سريع..." 
-              className="w-full h-11 pr-12 pl-6 bg-white/10 border border-white/20 rounded-xl text-base font-bold text-white focus:bg-white/20 outline-none transition-all placeholder:text-white/40" 
-            />
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-0 py-4 space-y-1 overflow-y-auto scrollbar-none overflow-x-hidden">
-          {filteredItems.map((item, index) => (
+          {/* Mobile close btn inside sidebar header */}
+          {isOpen && (
             <button
-              key={item.label}
-              onClick={() => onNavigate?.(item.viewName)}
-              className={cn(
-                "w-full flex items-center gap-4 py-2 px-8 relative group transition-all duration-200 will-change-[background,transform] active:scale-[0.98]",
-                item.isActive 
-                  ? "glass-item-active text-white rounded-l-[2rem] ml-4 scale-105" 
-                  : "text-white/70 hover:text-white hover:bg-white/5",
-                isCollapsed && "justify-center px-0 h-[3.5rem] w-[3.5rem] mx-auto rounded-2xl ml-0",
-                item.isActive && isCollapsed && "glass-item-active"
-              )}
+              onClick={onClose}
+              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
             >
-              {/* Modern Visual Link Connection */}
-              {item.isActive && !isCollapsed && (
-                <>
-                  <div className="absolute -top-6 left-0 w-6 h-6 bg-transparent shadow-[4px_4px_0_0_rgba(255,255,255,0.2)] rounded-br-full pointer-events-none" />
-                  <div className="absolute -bottom-6 left-0 w-6 h-6 bg-transparent shadow-[4px_-4px_0_0_rgba(255,255,255,0.2)] rounded-tr-full pointer-events-none" />
-                </>
-              )}
-
-              <item.icon className={cn(
-                "h-6 w-6 shrink-0 transition-all duration-200",
-                item.isActive ? "text-white scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/70 group-hover:text-white"
-              )} />
-              
-              {!isCollapsed && (
-                <span className="text-[1.1rem] font-black font-black-force tracking-tight whitespace-nowrap overflow-hidden">
-                  {item.label}
-                </span>
-              )}
-
-              {/* Tooltip for collapsed state */}
-              {isCollapsed && (
-                <div className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all translate-x-2 group-hover:translate-x-0 z-[110] whitespace-nowrap shadow-xl">
-                  {item.label}
-                  <div className="absolute top-1/2 -right-1 -translate-y-1/2 border-[4px] border-transparent border-l-slate-900" />
-                </div>
-              )}
-            </button>
-          ))}
-        </nav>
-        
-        {/* Upgrade/Help Box */}
-        <div className={cn("p-3 mt-auto transition-all", isCollapsed && "px-2")}>
-          {!isCollapsed ? (
-            <div className="bg-white/10 rounded-2xl p-4 border border-white/10 relative overflow-hidden group">
-              <div className="relative z-10">
-                <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-2">
-                  <BrainCircuit className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xs font-black text-white mb-0.5">طور حسابك الآن!</h3>
-                <p className="text-[9px] text-white/60 font-bold mb-2 leading-tight">احصل على وصول كامل لجميع المميزات المتقدمة والتحليلات الذكية.</p>
-                <Button 
-                  className="w-full bg-white/20 backdrop-blur-xl text-white border border-white/20 font-black hover:bg-white/30 py-2.5 rounded-2xl h-auto text-xs shadow-xl"
-                  onClick={() => whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')}
-                >
-                  ترقية الحساب
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <button 
-              className="w-12 h-12 flex items-center justify-center bg-white/10 rounded-xl text-white hover:bg-white/20 transition-all mx-auto"
-              onClick={() => whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')}
-            >
-              <MessageCircle className="h-6 w-6" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
-      </aside>
-    </div>
+
+        {/* Search bar */}
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 40 }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="relative overflow-hidden"
+            >
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="بحث سريع..."
+                className="w-full h-10 pr-9 pl-4 bg-white/10 border border-white/10 hover:border-white/20 focus:border-purple-400/50 rounded-xl text-sm font-semibold text-white outline-none transition-all placeholder:text-white/30 focus:bg-white/15"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="relative z-10 mx-5 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent mb-2" />
+
+      {/* Navigation */}
+      <nav
+        className={cn(
+          'relative z-10 flex-1 overflow-y-auto overflow-x-hidden py-1 space-y-0.5',
+          isCollapsed ? 'px-1 flex flex-col items-center' : 'px-1'
+        )}
+        style={{ scrollbarWidth: 'none' }}
+      >
+        <AnimatePresence>
+          {filteredItems.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-white/30 text-xs font-bold text-center py-6"
+            >
+              لا توجد نتائج
+            </motion.div>
+          )}
+
+          {filteredItems.map((item, index) => (
+            <motion.div
+              key={item.viewName}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.03, duration: 0.2 }}
+            >
+              <NavItem
+                item={item}
+                index={index}
+                isCollapsed={isCollapsed}
+                onNavigate={onNavigate}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </nav>
+
+      <div className="relative z-10 mx-5 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent mt-2" />
+
+      {/* Upgrade box */}
+      <div className={cn('relative z-10 p-3', isCollapsed && 'flex justify-center')}>
+        <AnimatePresence mode="wait">
+          {!isCollapsed ? (
+            <motion.div
+              key="upgrade-box"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-indigo-600/20 rounded-2xl p-4 border border-white/10"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none rounded-2xl" />
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center shadow-lg shrink-0">
+                  <BrainCircuit className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 text-right min-w-0">
+                  <p className="text-xs font-black text-white mb-0.5">طور حسابك الآن!</p>
+                  <p className="text-[10px] text-white/50 font-semibold leading-tight mb-2.5">
+                    وصول كامل للمميزات المتقدمة
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() =>
+                      whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')
+                    }
+                    className="w-full py-2 rounded-xl bg-gradient-to-r from-purple-400 to-indigo-500 text-white text-xs font-black shadow-lg hover:shadow-purple-500/30 transition-shadow"
+                  >
+                    ترقية الحساب
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.button
+              key="upgrade-icon"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() =>
+                whatsappNumber && window.open(`https://wa.me/${whatsappNumber}`, '_blank')
+              }
+              className="h-11 w-11 flex items-center justify-center bg-gradient-to-br from-purple-500/30 to-indigo-600/30 border border-white/10 rounded-2xl text-white hover:from-purple-500/50 hover:to-indigo-600/50 transition-all shadow-lg"
+            >
+              <MessageCircle className="h-5 w-5" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+    </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <motion.div
+        className={cn(
+          'hidden lg:block sticky top-0 z-40 shrink-0 self-start',
+          // ✅ FIX: use h-screen minus header height, not calc(100vh-1rem)
+          'h-[calc(100vh-5rem)]',
+          isCollapsed ? 'w-[5.5rem]' : 'w-[17rem]',
+          className
+        )}
+        animate={{ width: isCollapsed ? 88 : 272 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      >
+        {sidebarContent}
+      </motion.div>
+
+      {/* Mobile overlay + drawer */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              key="overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
+              onClick={onClose}
+            />
+
+            <motion.div
+              key="drawer"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={{ left: 0, right: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.x > 80) onClose?.();
+              }}
+              // ✅ FIX: use safe width that fits small screens
+              className="fixed inset-y-0 right-0 z-[101] lg:hidden w-[min(18rem,85vw)] p-2"
+              dir="rtl"
+            >
+              {sidebarContent}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
