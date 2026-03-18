@@ -57,8 +57,8 @@ const ProfileMenuItem = ({ icon: Icon, label, onClick, className, extra }: Profi
 const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean, onClose: () => void, title: string, children: React.ReactNode }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
         <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
           <h3 className="text-xl font-black text-slate-900">{title}</h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -145,9 +145,9 @@ export const StudentProfile = () => {
           </div>
         </div>
 
-        <div className="px-8 pb-8 flex flex-col items-center -mt-16 relative z-10">
+        <div className="px-6 sm:px-8 pb-8 flex flex-col items-center -mt-12 sm:-mt-16 relative z-10">
           <div className="relative group mb-4 text-center">
-            <div className="h-32 w-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white ring-4 ring-slate-100 flex items-center justify-center relative">
+            <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white ring-4 ring-slate-100 flex items-center justify-center relative">
               {profile?.photoURL ? (
                 <img src={profile.photoURL} alt="Profile" className="w-full h-full object-cover" />
               ) : (
@@ -170,14 +170,14 @@ export const StudentProfile = () => {
           </p>
 
           {/* Points & Gems */}
-          <div className="flex gap-4">
-             <div className="bg-slate-50/50 backdrop-blur-sm border border-slate-100 py-2 px-6 rounded-full flex items-center gap-3 shadow-sm">
-               <span className="font-black text-slate-700">Points {profile?.points || 0}</span>
-               <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+             <div className="bg-slate-50/50 backdrop-blur-sm border border-slate-100 py-1.5 sm:py-2 px-4 sm:px-6 rounded-full flex items-center gap-2 sm:gap-3 shadow-sm">
+               <span className="font-black text-xs sm:text-base text-slate-700">Points {profile?.points || 0}</span>
+               <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-yellow-500" />
              </div>
-             <div className="bg-slate-50/50 backdrop-blur-sm border border-slate-100 py-2 px-6 rounded-full flex items-center gap-3 shadow-sm">
-               <span className="font-black text-slate-700">{profile?.gems || 0}</span>
-               <Gem className="h-5 w-5 text-blue-400" />
+             <div className="bg-slate-50/50 backdrop-blur-sm border border-slate-100 py-1.5 sm:py-2 px-4 sm:px-6 rounded-full flex items-center gap-2 sm:gap-3 shadow-sm">
+               <span className="font-black text-xs sm:text-base text-slate-700">{profile?.gems || 0}</span>
+               <Gem className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
              </div>
           </div>
         </div>

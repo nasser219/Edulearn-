@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Send, MessageSquare, User, Trash2, Reply, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Send, 
+  MessageSquare, 
+  User, 
+  Trash2, 
+  Reply, 
+  CheckCircle2, 
+  AlertCircle, 
+  X, 
+  ChevronRight,
+  MoreVertical,
+  Paperclip,
+  Search,
+  ArrowRight
+} from 'lucide-react';
 import { db } from '../../firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { Button } from '../ui/Button';
@@ -9,6 +23,7 @@ import { Message } from '../../types';
 import { useEducatorsAuth } from '../auth/AuthProvider';
 import { cn } from '../../lib/utils';
 import { createNotification } from '../../hooks/useNotifications';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?: string | null }) => {
   const { profile } = useEducatorsAuth();
@@ -17,6 +32,8 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
   const [replyText, setReplyText] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'LIST' | 'DETAIL'>('LIST');
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const isTeacher = profile?.role === 'TEACHER' || profile?.role === 'ADMIN';
 
@@ -35,6 +52,18 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
 
     return () => unsubscribe();
   }, [profile, isTeacher]);
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    if (selectedMessage) {
+      scrollToBottom();
+    }
+  }, [selectedMessage]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +87,6 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
       setNewMessage('');
       setShowNewMessageModal(false);
 
-      // Add In-App Notification for Receiver
       const receiverName = teachers.find(t => t.id === selectedTeacherId)?.fullName || 'معلم';
       await createNotification({
         userId: selectedTeacherId,
@@ -84,9 +112,15 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
         status: 'REPLIED'
       });
       setReplyText('');
-      setSelectedMessage(null);
+      
+      const updatedMsg = { 
+        ...selectedMessage, 
+        reply: replyText.trim(), 
+        repliedAt: new Date().toISOString(), 
+        status: 'REPLIED' as const 
+      };
+      setSelectedMessage(updatedMsg);
 
-      // Add In-App Notification for Student
       await createNotification({
         userId: selectedMessage.senderId,
         title: 'تم الرد على رسالتك! 📩',
@@ -104,31 +138,21 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
     if (!window.confirm('هل أنت متأكد من حذف هذه الرسالة؟')) return;
     try {
       await deleteDoc(doc(db, 'messages', messageId));
+      setSelectedMessage(null);
+      setView('LIST');
     } catch (error) {
       console.error('Error deleting message:', error);
     }
   };
 
-  const handleCancel = async (messageId: string) => {
-    if (!window.confirm('هل تريد إلغاء هذه الرسالة؟')) return;
-    try {
-      await updateDoc(doc(db, 'messages', messageId), { status: 'CANCELLED' });
-    } catch (error) {
-      console.error('Error cancelling message:', error);
-    }
-  };
-
-  // State for student to select a teacher (simplified for now)
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
 
   useEffect(() => {
     if (!isTeacher && profile?.uid) {
-      // Fetch teachers for students to message - ONLY for enrolled courses
       const fetchEnrolledTeachers = async () => {
         try {
-          // 1. Get Enrollments
           const enrollQ = query(
             collection(db, 'enrollments'), 
             where('studentId', '==', profile.uid),
@@ -142,8 +166,6 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
             return;
           }
 
-          // 2. Get Course Teacher IDs
-          // Firestore 'in' query limited to 10. For more, we'd need batching.
           const coursesQ = query(
             collection(db, 'courses'), 
             where('__name__', 'in', courseIds.slice(0, 10))
@@ -156,7 +178,6 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
             return;
           }
 
-          // 3. Get Teacher Profiles
           const teachersQ = query(
             collection(db, 'users'), 
             where('role', '==', 'TEACHER'),
@@ -175,83 +196,104 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
     }
   }, [isTeacher, profile]);
 
-  // 3. Handle preselected contact
   useEffect(() => {
     if (preselectedContactId && isTeacher) {
-      // For teachers, we want to find the student in messages or just start a new thread
-      // But for now, we'll use it to filter/select if possible.
-      // If we're a teacher and have a contactId, it's likely a student we want to message.
-      setSelectedTeacherId(preselectedContactId); // Reusing variable name for destination
+      setSelectedTeacherId(preselectedContactId);
       setShowNewMessageModal(true);
     }
   }, [preselectedContactId, isTeacher]);
 
+  const selectMessage = (msg: Message) => {
+    setSelectedMessage(msg);
+    setView('DETAIL');
+  };
+
   return (
-    <div className="space-y-8 pb-12" dir="rtl">
-      <div className="flex items-center justify-between px-2">
+    <div className="space-y-6 pb-12" dir="rtl">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white/40 backdrop-blur-xl p-8 rounded-[3rem] border border-white/20 shadow-premium">
         <div className="text-right space-y-1">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">مركز الرسائل</h2>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            مركز التواصل <MessageSquare className="h-8 w-8 text-brand-primary" />
+          </h2>
           <p className="text-slate-500 font-bold italic">
-            {isTeacher ? 'تواصل مع طلابك ورد على استفساراتهم.' : 'أرسل أسئلتك لمعلميك وتابع الردود.'}
+            {isTeacher ? 'إدارة استفسارات الطلاب والتفاعل معهم.' : 'تواصل مباشر مع معلميك ومعالجة الذكاء الاصطناعي.'}
           </p>
         </div>
         {!isTeacher && (
           <Button 
             variant="primary" 
             onClick={() => setShowNewMessageModal(true)}
-            className="rounded-2xl px-8 py-4 h-auto font-black shadow-lg shadow-brand-primary/30 flex items-center gap-2"
+            className="rounded-2xl px-10 py-5 h-auto font-black shadow-xl shadow-brand-primary/30 hover:scale-105 transition-all text-lg group"
           >
-            رسالة جديدة
+            بدء محادثة جديدة <Send className="mr-2 h-5 w-5 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="rounded-[2.5rem] border-none shadow-premium overflow-hidden bg-white h-[600px] flex flex-col">
-            <CardHeader className="bg-slate-50/50 p-6 border-b border-slate-50">
-              <h3 className="font-black text-lg text-slate-800">قائمة الرسائل</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[750px] items-stretch">
+        {/* Messages List Sidebar */}
+        <div className={cn(
+          "lg:col-span-1 space-y-6 h-full transition-all duration-300",
+          view === 'DETAIL' ? "hidden lg:block" : "block"
+        )}>
+          <Card className="rounded-[2.5rem] border-none shadow-premium overflow-hidden bg-white/80 backdrop-blur-md h-full flex flex-col border border-white/40">
+            <CardHeader className="bg-slate-50/50 p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-black text-lg text-slate-800">صندوق الوارد</h3>
+              <Search className="h-5 w-5 text-slate-400 cursor-pointer hover:text-brand-primary transition-colors" />
             </CardHeader>
-            <CardContent className="p-0 overflow-y-auto flex-1">
+            <CardContent className="p-0 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200">
               {loading ? (
-                <p className="p-10 text-center font-bold text-slate-400">جاري التحميل...</p>
+                <div className="p-10 space-y-4">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />
+                  ))}
+                </div>
               ) : messages.length === 0 ? (
-                <div className="p-10 text-center">
-                  <MessageSquare className="h-12 w-12 text-slate-200 mx-auto mb-2" />
-                  <p className="text-slate-400 font-bold">لا توجد رسائل حالياً.</p>
+                <div className="p-20 text-center space-y-4">
+                  <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                    <MessageSquare className="h-10 w-10 text-slate-200" />
+                  </div>
+                  <p className="text-slate-400 font-black">لا توجد رسائل حالياً.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-50">
                   {messages.map((message) => (
                     <button
                       key={message.id}
-                      onClick={() => setSelectedMessage(message)}
+                      onClick={() => selectMessage(message)}
                       className={cn(
-                        "w-full p-6 text-right transition-all hover:bg-slate-50 flex flex-col gap-2",
-                        selectedMessage?.id === message.id ? "bg-brand-primary/5 border-r-4 border-brand-primary" : ""
+                        "w-full p-6 text-right transition-all hover:bg-slate-50 flex flex-col gap-2 group relative overflow-hidden",
+                        selectedMessage?.id === message.id ? "bg-brand-primary/5 border-r-[6px] border-brand-primary" : ""
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-slate-800">
-                          {isTeacher ? message.senderName : `إلى: ${teachers.find(t => t.id === message.receiverId)?.fullName || 'المعلم'}`}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">
-                          {new Date(message.createdAt).toLocaleDateString('ar-EG')}
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-slate-400 text-sm">
+                            {(isTeacher ? message.senderName : (teachers.find(t => t.id === message.receiverId)?.fullName || 'ط'))[0]}
+                          </div>
+                          <span className="font-black text-slate-800 text-lg">
+                            {isTeacher ? message.senderName : teachers.find(t => t.id === message.receiverId)?.fullName || 'المعلم'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                          {new Date(message.createdAt).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-500 line-clamp-1 font-medium">{message.content}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-slate-500 line-clamp-1 font-bold pr-13">{message.content}</p>
+                      
+                      <div className="flex items-center gap-2 mt-1 pr-13">
                         {message.status === 'REPLIED' ? (
-                          <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" /> تم الرد
+                          <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 border border-emerald-100">
+                             تم الرد
                           </span>
                         ) : message.status === 'CANCELLED' ? (
-                          <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1">
-                            <X className="h-3 w-3" /> ملغاة
+                          <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 border border-rose-100">
+                             ملغاة
                           </span>
                         ) : (
-                          <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" /> قيد الانتظار
+                          <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 border border-amber-100">
+                             قيد المراجعة
                           </span>
                         )}
                       </div>
@@ -263,114 +305,199 @@ export const MessageCenter = ({ preselectedContactId }: { preselectedContactId?:
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        {/* Message Content Area */}
+        <div className={cn(
+          "lg:col-span-2 h-full transition-all duration-300",
+          view === 'LIST' ? "hidden lg:block" : "block"
+        )}>
           {selectedMessage ? (
-            <Card className="rounded-[2.5rem] border-none shadow-premium overflow-hidden bg-white h-[600px] flex flex-col">
-              <CardHeader className="bg-slate-50/50 p-8 border-b border-slate-50 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-slate-800">{isTeacher ? selectedMessage.senderName : 'تفاصيل الرسالة'}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold mt-1">تاريخ الإرسال: {new Date(selectedMessage.createdAt).toLocaleString('ar-EG')}</p>
+            <Card className="rounded-[2.5rem] border-none shadow-premium overflow-hidden bg-white h-full flex flex-col border border-slate-100 relative">
+              <CardHeader className="bg-white p-6 border-b border-slate-50 flex items-center justify-between sticky top-0 z-20">
+                <div className="flex items-center gap-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setView('LIST')}
+                    className="lg:hidden h-10 w-10 p-0 rounded-xl bg-slate-50"
+                  >
+                    <ArrowRight className="h-6 w-6" />
+                  </Button>
+                  <div className="h-12 w-12 bg-brand-primary/10 rounded-[1.2rem] flex items-center justify-center font-black text-brand-primary text-xl shadow-inner">
+                    {(isTeacher ? selectedMessage.senderName : 'م')[0]}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800">{isTeacher ? selectedMessage.senderName : 'تفاصيل المحادثة'}</h3>
+                    <div className="flex items-center gap-2">
+                       <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                       <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">نشط الآن</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => handleDelete(selectedMessage.id)}
-                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl"
+                    className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-xl transition-all"
                   >
                     <Trash2 className="h-5 w-5" />
                   </Button>
+                  <Button variant="ghost" size="sm" className="text-slate-400 p-2.5 rounded-xl">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-8 flex-1 overflow-y-auto space-y-8">
-                <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 max-w-[80%]">
-                  <p className="text-slate-800 font-bold mb-2">الرسالة:</p>
-                  <p className="text-slate-600 font-medium leading-relaxed">{selectedMessage.content}</p>
+              
+              <CardContent 
+                ref={scrollRef}
+                className="p-8 flex-1 overflow-y-auto space-y-8 bg-[#fdfeff] scroll-smooth"
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="max-w-[85%] self-start space-y-2">
+                    <div className="bg-white p-6 rounded-[1.8rem] rounded-tr-none shadow-sm border border-slate-100">
+                      <p className="text-slate-700 font-bold leading-relaxed">{selectedMessage.content}</p>
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-black mr-4 uppercase">
+                      {new Date(selectedMessage.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+
+                  {selectedMessage.reply && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="max-w-[85%] self-end space-y-2"
+                    >
+                      <div className="bg-brand-primary p-6 rounded-[1.8rem] rounded-tl-none shadow-lg shadow-brand-primary/20 text-white">
+                        <p className="font-bold flex items-center gap-2 mb-2 text-xs opacity-75">
+                           <Reply className="h-4 w-4" /> رد المعلم
+                        </p>
+                        <p className="font-bold leading-relaxed">{selectedMessage.reply}</p>
+                      </div>
+                      <p className="text-[9px] text-slate-400 font-black ml-4 uppercase text-left">
+                        {new Date(selectedMessage.repliedAt!).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </motion.div>
+                  )}
                 </div>
 
-                {selectedMessage.reply && (
-                  <div className="bg-brand-primary/5 p-6 rounded-[2rem] border border-brand-primary/10 mr-auto max-w-[80%]">
-                    <p className="text-brand-primary font-black mb-2 flex items-center gap-2">
-                      <Reply className="h-4 w-4" /> رد المعلم:
-                    </p>
-                    <p className="text-slate-600 font-medium leading-relaxed">{selectedMessage.reply}</p>
-                    <p className="text-[9px] text-slate-400 font-bold mt-2">تاريخ الرد: {new Date(selectedMessage.repliedAt!).toLocaleString('ar-EG')}</p>
-                  </div>
-                )}
+                <div className="h-4" />
+              </CardContent>
 
-                {isTeacher && !selectedMessage.reply && selectedMessage.status === 'PENDING' && (
-                  <form onSubmit={handleReply} className="mt-8 space-y-4">
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="اكتب ردك هنا..."
-                      className="w-full h-32 p-6 bg-slate-50 border-[3px] border-transparent rounded-[2rem] text-lg font-bold focus:outline-none focus:bg-white focus:border-brand-primary transition-all shadow-inner resize-none text-right"
-                    />
+              {/* Chat Input Area */}
+              <div className="p-6 bg-white border-t border-slate-50">
+                {isTeacher && !selectedMessage.reply && selectedMessage.status === 'PENDING' ? (
+                  <form onSubmit={handleReply} className="relative flex items-end gap-3">
+                    <div className="flex-1 relative">
+                       <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="اكتب ردك هنا..."
+                        className="w-full min-h-[60px] max-h-[150px] pr-6 pl-12 py-5 bg-slate-50 border-2 border-transparent rounded-[2rem] text-lg font-bold focus:outline-none focus:bg-white focus:border-brand-primary transition-all shadow-inner resize-none text-right placeholder:text-slate-300"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleReply(e);
+                          }
+                        }}
+                      />
+                      <Button 
+                        type="button"
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute left-4 bottom-4 h-10 w-10 p-0 rounded-full text-slate-400 hover:text-brand-primary"
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                    </div>
                     <Button
                       type="submit"
                       disabled={!replyText.trim()}
-                      className="w-full bg-brand-primary text-white py-6 rounded-2xl font-black text-lg shadow-xl shadow-brand-primary/20 hover:scale-[1.02] transition-all"
+                      className="h-[60px] w-[60px] bg-brand-primary text-white p-0 rounded-full flex items-center justify-center shadow-xl shadow-brand-primary/30 hover:scale-105 active:scale-95 transition-all shrink-0"
                     >
-                      إرسال الرد 🚀
+                      <Send className="h-6 w-6" />
                     </Button>
                   </form>
+                ) : (
+                  <div className="flex items-center justify-center py-4 px-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <p className="text-slate-400 font-black text-sm italic">
+                      {selectedMessage.status === 'REPLIED' ? 'تم الرد على هذه المحادثة بنجاح.' : 'تم إرسال الرسالة، في انتظار مراجعة المعلم.'}
+                    </p>
+                  </div>
                 )}
-              </CardContent>
+              </div>
             </Card>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
-              <MessageSquare className="h-20 w-20 text-slate-200 mb-4" />
-              <h3 className="text-xl font-black text-slate-400">اختر رسالة لعرض تفاصيلها</h3>
+            <div className="h-full flex flex-col items-center justify-center bg-white/50 rounded-[3rem] border-4 border-dashed border-white shadow-inner p-10 text-center">
+              <div className="h-32 w-32 bg-white rounded-full flex items-center justify-center shadow-premium mb-6 animate-bounce duration-[3000ms]">
+                <MessageSquare className="h-12 w-12 text-brand-primary opacity-50" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 mb-2">اختر محادثة للبدء</h3>
+              <p className="text-slate-400 font-bold max-w-xs">اختر أحد الطلاب أو المعلمين من القائمة اليمنى لعرض سجل المراسلات.</p>
             </div>
           )}
         </div>
       </div>
 
-      {showNewMessageModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-xl rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <CardHeader className="p-8 border-b border-slate-50 flex items-center justify-between">
-              <h3 className="text-2xl font-black text-slate-800">إرسال رسالة جديدة</h3>
-              <button onClick={() => setShowNewMessageModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                <X className="h-6 w-6 text-slate-400" />
-              </button>
-            </CardHeader>
-            <CardContent className="p-8 space-y-6">
-              <div className="space-y-3">
-                <label className="text-sm font-black text-slate-500 mr-2 uppercase tracking-widest">اختر المعلم</label>
-                <select
-                  value={selectedTeacherId}
-                  onChange={(e) => setSelectedTeacherId(e.target.value)}
-                  className="w-full h-16 px-6 bg-slate-50 border-[3px] border-transparent rounded-3xl text-lg font-bold focus:outline-none focus:bg-white focus:border-brand-primary transition-all shadow-inner appearance-none text-right"
-                >
-                  <option value="">-- اختر من القائمة --</option>
-                  {teachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.fullName} ({t.subject || 'عام'})</option>
-                  ))}
-                </select>
-              </div>
+      {/* New Message Modal */}
+      <AnimatePresence>
+        {showNewMessageModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-xl"
+            >
+              <Card className="rounded-[3.5rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.2)] border-none bg-white">
+                <CardHeader className="p-10 border-b border-slate-50 flex items-center justify-between bg-white relative z-10">
+                  <h3 className="text-2xl font-black text-slate-800">إرسال استفسار جديد</h3>
+                  <button onClick={() => setShowNewMessageModal(false)} className="h-12 w-12 bg-slate-50 hover:bg-slate-100 rounded-2xl flex items-center justify-center transition-colors">
+                    <X className="h-6 w-6 text-slate-400" />
+                  </button>
+                </CardHeader>
+                <CardContent className="p-10 space-y-8">
+                  <div className="space-y-3">
+                    <label className="text-sm font-black text-slate-400 mr-2 uppercase tracking-widest flex items-center gap-2">
+                       <User className="h-4 w-4" /> اختر المعلم المستهدف
+                    </label>
+                    <select
+                      value={selectedTeacherId}
+                      onChange={(e) => setSelectedTeacherId(e.target.value)}
+                      className="w-full h-18 px-8 bg-slate-50 border-3 border-transparent rounded-[2rem] text-lg font-black focus:outline-none focus:bg-white focus:border-brand-primary transition-all shadow-inner appearance-none text-right cursor-pointer"
+                    >
+                      <option value="">-- اضغط للاختيار --</option>
+                      {teachers.map(t => (
+                        <option key={t.id} value={t.id}>{t.fullName} • {t.subject || 'عام'}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="space-y-3">
-                <label className="text-sm font-black text-slate-500 mr-2 uppercase tracking-widest">الرسالة</label>
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="اكتب رسالتك بوضوح..."
-                  className="w-full h-40 p-6 bg-slate-50 border-[3px] border-transparent rounded-3xl text-lg font-bold focus:outline-none focus:bg-white focus:border-brand-primary transition-all shadow-inner resize-none text-right"
-                />
-              </div>
+                  <div className="space-y-3">
+                    <label className="text-sm font-black text-slate-400 mr-2 uppercase tracking-widest flex items-center gap-2">
+                       <AlertCircle className="h-4 w-4" /> موضوع الرسالة
+                    </label>
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="اشرح استفسارك بوضوح للمعلم..."
+                      className="w-full h-44 p-8 bg-slate-50 border-3 border-transparent rounded-[2.5rem] text-lg font-bold focus:outline-none focus:bg-white focus:border-brand-primary transition-all shadow-inner resize-none text-right placeholder:text-slate-300"
+                    />
+                  </div>
 
-              <Button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim() || !selectedTeacherId}
-                className="w-full h-16 bg-brand-primary text-white rounded-2xl font-black text-xl shadow-xl shadow-brand-primary/20 hover:scale-[1.02] transition-all"
-              >
-                إرسال الآن ✨
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || !selectedTeacherId}
+                    className="w-full h-20 bg-brand-primary text-white rounded-[2rem] font-black text-xl shadow-2xl shadow-brand-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                  >
+                    إرسال الآن <Send className="h-6 w-6" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

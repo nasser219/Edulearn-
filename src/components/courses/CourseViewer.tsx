@@ -211,8 +211,8 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
   const isCurrentLessonLocked = currentLesson ? getIsLessonLocked(currentLesson) : false;
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-120px)] gap-6">
-      <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-120px)] gap-6 lg:gap-8 pb-10 lg:pb-0">
+      <div className="flex-1 space-y-4 overflow-y-auto lg:pr-2 px-1 sm:px-0">
         <div className="flex items-center gap-2 mb-2">
           <Button variant="ghost" size="sm" onClick={onBack} className="text-slate-500 font-bold hover:bg-slate-100 rounded-xl">
             <ChevronRight className="h-4 w-4 ml-1" /> العودة للكورسات
@@ -268,7 +268,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
               </SecurityOverlay>
             ) : (
               <SecurityOverlay showViolationUI={false}>
-                <div className="aspect-video bg-slate-900 rounded-[2.5rem] border-8 border-white shadow-premium overflow-hidden relative group font-sans">
+                <div className="aspect-video bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border-4 sm:border-8 border-white shadow-premium overflow-hidden relative group font-sans">
                   {isCloudinaryCollection(currentLesson.contentUrl) ? (
                     <div className="flex flex-col items-center justify-center h-full w-full bg-slate-800 p-8 text-center text-white">
                        <div className="bg-brand-primary/20 p-6 rounded-full border border-brand-primary/30 mb-6 backdrop-blur-md">
@@ -399,7 +399,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
       </div>
 
       {/* Right Side: Content Sidebar with Bubble/Glass Theme */}
-      <div className="w-full lg:w-80 glass-mauve rounded-[2.5rem] flex flex-col overflow-hidden border border-white/10 shadow-2xl relative">
+      <div className="w-full lg:w-85 xl:w-[22rem] glass-mauve rounded-[1.5rem] sm:rounded-[2.5rem] flex flex-col overflow-hidden border border-white/10 shadow-2xl relative">
         <div className="p-6 border-b border-white/10 bg-white/5 text-right">
           <h3 className="text-white font-black text-base mb-3">محتوى الكورس</h3>
           <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
