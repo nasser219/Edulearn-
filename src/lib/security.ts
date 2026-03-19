@@ -32,7 +32,16 @@ export interface SecurityEvent {
 }
 
 // ─────────────────────────────────────────────
-// Helpers
+// FIX 1: Mobile detection helper
+// Dimension-based DevTools check causes constant
+// false positives on mobile (address bar resizing etc.)
+// ─────────────────────────────────────────────
+const IS_MOBILE =
+  /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent) ||
+  ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+
+// ─────────────────────────────────────────────
+// Event metadata
 // ─────────────────────────────────────────────
 const EVENT_TITLES: Record<SecurityEventType, string> = {
   SCREEN_RECORDING: 'رصد تسجيل شاشة',
@@ -53,20 +62,20 @@ const SEVERITY: Record<SecurityEventType, SecurityEvent['severity']> = {
 };
 
 // ─────────────────────────────────────────────
-// FIX 1: Real IP + location via ipapi.co
-// Cached so we don't hammer the API on every event
+// FIX 2: Real IP via ipapi.co — cached
 // ─────────────────────────────────────────────
 interface GeoInfo { ip: string; location: string }
-
 let geoCache: GeoInfo | null = null;
 
 const getGeoInfo = async (): Promise<GeoInfo> => {
   if (geoCache) return geoCache;
   try {
-    const res  = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
+    const res  = await fetch('https://ipapi.co/json/', {
+      signal: AbortSignal.timeout(4000)
+    });
     const data = await res.json();
     geoCache = {
-      ip:       data.ip       ?? 'غير معروف',
+      ip:       data.ip ?? 'غير معروف',
       location: data.city && data.country_name
                   ? `${data.city}، ${data.country_name}`
                   : 'غير محدد',
@@ -78,9 +87,7 @@ const getGeoInfo = async (): Promise<GeoInfo> => {
 };
 
 // ─────────────────────────────────────────────
-// FIX 2: logSecurityEvent now gets real IP
-// and accepts optional studentName/Phone
-// (so VideoPlayer can pass them directly)
+// logSecurityEvent
 // ─────────────────────────────────────────────
 export const logSecurityEvent = async (
   type: SecurityEventType,
@@ -91,7 +98,6 @@ export const logSecurityEvent = async (
 
   try {
     const geo = await getGeoInfo();
-
     await addDoc(collection(db, 'security_logs'), {
       userId:    user.uid,
       userName:  extra?.studentName  ?? user.displayName ?? 'طالب مجهول',
@@ -103,6 +109,7 @@ export const logSecurityEvent = async (
       ip:        geo.ip,
       location:  geo.location,
       userAgent: navigator.userAgent,
+      isMobile:  IS_MOBILE,
       details:   extra?.details ?? '',
     });
   } catch (error) {
@@ -111,25 +118,23 @@ export const logSecurityEvent = async (
 };
 
 // ─────────────────────────────────────────────
-// FIX 3: useSecurityDetection
-//  - Debounced DevTools check (avoids spam)
-//  - getDisplayMedia proxy moved inside effect
-//  - useCallback on onViolation to prevent loops
-//  - Cleanup is now guaranteed
+// useSecurityDetection
 // ─────────────────────────────────────────────
 export const useSecurityDetection = (
   onViolation: (type: SecurityEventType) => void,
   active: boolean = true,
   config?: { disableTabSwitch?: boolean }
 ) => {
-  // Debounce ref: prevent the same event firing more than once per 3 seconds
   const lastFired   = useRef<Partial<Record<SecurityEventType, number>>>({});
   const originalGDM = useRef<typeof navigator.mediaDevices.getDisplayMedia | null>(null);
 
   const fire = useCallback((type: SecurityEventType) => {
+    // FIX 3: Never fire DEVTOOLS on mobile — guaranteed false positive
+    if (IS_MOBILE && type === 'DEVTOOLS') return;
+
     const now  = Date.now();
     const last = lastFired.current[type] ?? 0;
-    if (now - last < 3000) return;          // debounce 3 s
+    if (now - last < 3000) return;     // debounce 3s per event type
     lastFired.current[type] = now;
     onViolation(type);
   }, [onViolation]);
@@ -137,25 +142,31 @@ export const useSecurityDetection = (
   useEffect(() => {
     if (!active) return;
 
-    // ── 1. DevTools via dimension diff (debounced on resize) ──
+    // ── 1. DevTools via dimension diff ──
+    // FIX 4: COMPLETELY disabled on mobile
+    // Mobile Chrome/Safari resize window constantly (address bar, keyboard etc.)
     let devToolsTimer: ReturnType<typeof setTimeout>;
     const checkDevTools = () => {
+      if (IS_MOBILE) return;   // ← key fix
       clearTimeout(devToolsTimer);
       devToolsTimer = setTimeout(() => {
         const W = window.outerWidth  - window.innerWidth  > 160;
         const H = window.outerHeight - window.innerHeight > 160;
         if (W || H) fire('DEVTOOLS');
-      }, 500);
+      }, 800);                  // longer debounce for desktop too
     };
 
-    // ── 2. Tab visibility ──
+    // ── 2. Tab/app switch ──
+    // FIX 5: On mobile this fires every time keyboard appears or
+    // user checks a notification. Only use on desktop.
     const handleVisibility = () => {
+      if (IS_MOBILE) return;   // ← key fix
       if (document.visibilityState === 'hidden' && !config?.disableTabSwitch) {
         fire('TAB_SWITCH');
       }
     };
 
-    // ── 3. Keyboard shortcuts ──
+    // ── 3. Keyboard shortcuts (desktop only — no physical keyboard on mobile) ──
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'PrintScreen') {
         fire('PRINT_SCREEN');
@@ -166,41 +177,37 @@ export const useSecurityDetection = (
         e.key === 'F12';
       if (devToolsShortcut) { fire('DEVTOOLS'); return; }
 
-      if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault();
-        fire('SAVE_AS');
-      }
-
-      // Meta key (Mac) equivalents
-      if (e.metaKey && (e.key === 's' || e.key === 'S')) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         fire('SAVE_AS');
       }
     };
 
-    // ── 4. Proxy getDisplayMedia ──
-    originalGDM.current = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getDisplayMedia = async () => {
-      fire('SCREEN_RECORDING');
-      throw new DOMException('Screen recording is disabled for this content.', 'NotAllowedError');
-    };
+    // ── 4. Screen sharing proxy ──
+    // FIX 6: Guard against browsers that don't support getDisplayMedia
+    if (navigator.mediaDevices?.getDisplayMedia) {
+      originalGDM.current = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getDisplayMedia = async () => {
+        fire('SCREEN_RECORDING');
+        throw new DOMException('Screen recording is disabled.', 'NotAllowedError');
+      };
+    }
 
-    // ── 5. Right-click / context menu ──
+    // ── 5. Context menu ──
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
-    window.addEventListener('resize',           checkDevTools);
-    window.addEventListener('keydown',          handleKeyDown);
-    document.addEventListener('visibilitychange', handleVisibility);
-    document.addEventListener('contextmenu',    handleContextMenu);
+    window.addEventListener('resize',              checkDevTools);
+    window.addEventListener('keydown',             handleKeyDown);
+    document.addEventListener('visibilitychange',  handleVisibility);
+    document.addEventListener('contextmenu',       handleContextMenu);
 
     return () => {
       clearTimeout(devToolsTimer);
-      window.removeEventListener('resize',            checkDevTools);
-      window.removeEventListener('keydown',           handleKeyDown);
+      window.removeEventListener('resize',             checkDevTools);
+      window.removeEventListener('keydown',            handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibility);
-      document.removeEventListener('contextmenu',     handleContextMenu);
-      // Restore original getDisplayMedia
-      if (originalGDM.current) {
+      document.removeEventListener('contextmenu',      handleContextMenu);
+      if (originalGDM.current && navigator.mediaDevices?.getDisplayMedia) {
         navigator.mediaDevices.getDisplayMedia = originalGDM.current;
       }
     };
@@ -208,45 +215,7 @@ export const useSecurityDetection = (
 };
 
 // ─────────────────────────────────────────────
-// FIX 4: Watermark canvas utility
-// Burns student info into a canvas overlay
-// ─────────────────────────────────────────────
-export const drawWatermark = (
-  canvas: HTMLCanvasElement,
-  text: string,
-  opacity = 0.18
-) => {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  canvas.width  = canvas.offsetWidth  || 640;
-  canvas.height = canvas.offsetHeight || 360;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
-
-  ctx.globalAlpha = opacity;
-  ctx.fillStyle   = 'white';
-  ctx.font        = `bold ${Math.max(12, canvas.width / 40)}px monospace`;
-  ctx.textAlign   = 'center';
-
-  // Diagonal tiling
-  const spacing = 180;
-  for (let y = -canvas.height; y < canvas.height * 2; y += spacing) {
-    for (let x = -canvas.width; x < canvas.width * 2; x += spacing) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(-Math.PI / 6);        // –30°
-      ctx.fillText(text, 0, 0);
-      ctx.restore();
-    }
-  }
-
-  ctx.restore();
-};
-
-// ─────────────────────────────────────────────
-// subscribeToSecurityLogs (unchanged API)
+// subscribeToSecurityLogs
 // ─────────────────────────────────────────────
 export const subscribeToSecurityLogs = (
   callback: (logs: SecurityEvent[]) => void
@@ -256,9 +225,7 @@ export const subscribeToSecurityLogs = (
     orderBy('timestamp', 'desc'),
     limit(50)
   );
-  return onSnapshot(q, (snapshot) => {
-    callback(
-      snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SecurityEvent))
-    );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SecurityEvent)));
   });
 };
