@@ -52,7 +52,8 @@ export const Settings = () => {
     whatsappPassword: profile?.whatsappPassword || '',
     whatsappToken: profile?.whatsappToken || '',
     whatsappTemplateSubscription: profile?.whatsappTemplateSubscription || 'تم الاشتراك في كورس [course] بنجاح مع مستر [teacher]. بالتوفيق يا [student]!',
-    whatsappTemplateNewCourse: profile?.whatsappTemplateNewCourse || 'خبر سار! تم رفع كورس جديد: [course]. يمكنك الآن البدء في المذاكرة يا [student]!'
+    whatsappTemplateNewCourse: profile?.whatsappTemplateNewCourse || 'خبر سار! تم رفع كورس جديد: [course]. يمكنك الآن البدء في المذاكرة يا [student]!',
+    whatsappTemplateCourseUpdate: profile?.whatsappTemplateCourseUpdate || 'تم تحديث مادة الكورس: [course]. يرجى المراجعة لمعرفة الجديد يا [student]!'
   });
   const [bio, setBio] = useState(profile?.bio || '');
   const [isSavingPayment, setIsSavingPayment] = useState(false);
@@ -71,7 +72,8 @@ export const Settings = () => {
         whatsappPassword: profile.whatsappPassword || '',
         whatsappToken: profile.whatsappToken || '',
         whatsappTemplateSubscription: profile.whatsappTemplateSubscription || 'تم الاشتراك في كورس [course] بنجاح مع مستر [teacher]. بالتوفيق يا [student]!',
-        whatsappTemplateNewCourse: profile.whatsappTemplateNewCourse || 'خبر سار! تم رفع كورس جديد: [course]. يمكنك الآن البدء في المذاكرة يا [student]!'
+        whatsappTemplateNewCourse: profile.whatsappTemplateNewCourse || 'خبر سار! تم رفع كورس جديد: [course]. يمكنك الآن البدء في المذاكرة يا [student]!',
+        whatsappTemplateCourseUpdate: profile.whatsappTemplateCourseUpdate || 'تم تحديث مادة الكورس: [course]. يرجى المراجعة لمعرفة الجديد يا [student]!'
       });
     }
     if (profile?.bio) {
@@ -134,7 +136,8 @@ export const Settings = () => {
         whatsappPassword: paymentInfo.whatsappPassword,
         whatsappToken: paymentInfo.whatsappToken.trim(),
         whatsappTemplateSubscription: paymentInfo.whatsappTemplateSubscription,
-        whatsappTemplateNewCourse: paymentInfo.whatsappTemplateNewCourse
+        whatsappTemplateNewCourse: paymentInfo.whatsappTemplateNewCourse,
+        whatsappTemplateCourseUpdate: paymentInfo.whatsappTemplateCourseUpdate
       });
       setMessage({ type: 'success', text: 'تم حفظ إعدادات الدفع والواتساب بنجاح' });
     } catch (error) {
@@ -762,6 +765,14 @@ export const Settings = () => {
                           className="w-full h-24 p-4 bg-slate-50/50 border-none rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none"
                           value={paymentInfo.whatsappTemplateNewCourse}
                           onChange={(e) => setPaymentInfo(prev => ({ ...prev, whatsappTemplateNewCourse: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 mr-2 uppercase tracking-widest">تحديث كورس موجود 🔄</label>
+                        <textarea 
+                          className="w-full h-24 p-4 bg-slate-50/50 border-none rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none"
+                          value={paymentInfo.whatsappTemplateCourseUpdate}
+                          onChange={(e) => setPaymentInfo(prev => ({ ...prev, whatsappTemplateCourseUpdate: e.target.value }))}
                         />
                       </div>
                     </div>

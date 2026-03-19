@@ -1,17 +1,17 @@
-import { 
-  LayoutDashboard, 
-  BookOpen, 
+import {
+  LayoutDashboard,
+  BookOpen,
   FileText,
-  GraduationCap, 
-  Users, 
-  Settings, 
-  MessageCircle, 
-  ShieldAlert, 
-  BrainCircuit, 
-  Search, 
-  Bell, 
-  ChevronLeft, 
-  ChevronRight, 
+  GraduationCap,
+  Users,
+  Settings,
+  MessageCircle,
+  ShieldAlert,
+  BrainCircuit,
+  Search,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
   X,
   CreditCard,
   BarChart3,
@@ -250,8 +250,8 @@ export const Sidebar = ({
       const roleMatch = isAdmin()
         ? true
         : profile
-        ? item.roles.includes(profile.role)
-        : false;
+          ? item.roles.includes(profile.role)
+          : false;
 
       const searchMatch =
         !searchQuery ||
@@ -299,7 +299,7 @@ export const Sidebar = ({
                     التربويين
                   </span>
                   <span className="text-[9px] font-bold text-white/40 tracking-widest uppercase whitespace-nowrap">
-                    EduLearn DRM v3.0
+                    EduLearn
                   </span>
                 </motion.div>
               )}
@@ -329,9 +329,10 @@ export const Sidebar = ({
           {isOpen && (
             <button
               onClick={onClose}
-              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10"
+              className="lg:hidden h-10 w-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-red-500/80 text-white border border-white/20 shadow-lg backdrop-blur-md transition-all shrink-0"
+              title="إغلاق التصفح"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           )}
         </div>

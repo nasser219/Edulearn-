@@ -20,14 +20,14 @@ export const Header = ({ onMenuClick, onNavigate }: { onMenuClick?: () => void, 
 
         {/* Right side: Menu + Logo */}
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          <Button
-            variant="ghost"
-            className="lg:hidden h-10 w-10 flex items-center justify-center rounded-2xl bg-white/20 backdrop-blur-xl border border-white/20 shadow-lg text-brand-primary active:scale-90 transition-all shrink-0"
+          <button
+            className="lg:hidden h-11 w-11 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-800 hover:bg-slate-50 active:scale-95 transition-all shrink-0"
             onClick={onMenuClick}
-            aria-label="القائمة"
+            aria-label="القائمة الجانبية"
+            title="القائمة الجانبية"
           >
-            <Menu className="h-5 w-5" />
-          </Button>
+            <Menu className="h-6 w-6" />
+          </button>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white/20 backdrop-blur-xl rounded-xl sm:rounded-[1.25rem] border border-white/20 flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95 cursor-pointer shrink-0">

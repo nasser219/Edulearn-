@@ -10,7 +10,8 @@ import {
   X,
   Loader2,
   Users,
-  Target
+  Target,
+  Clock
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardContent } from '../ui/Card';
@@ -23,11 +24,26 @@ import { FileUpload } from '../ui/FileUpload';
 import { cn } from '../../lib/utils';
 
 export const AdminAnnouncements = () => {
-  const { profile } = useEducatorsAuth();
+  const { profile, user, hasPermission } = useEducatorsAuth();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   
+  const isSuperAdmin = hasPermission('MANAGE_ADVERTISEMENTS');
+
+  useEffect(() => {
+    const qAll = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(qAll, (snap) => {
+      // Filter only those created by an admin or marked as global for this view
+      const allAnn = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      // Focus on admin announcements only
+      setAnnouncements(allAnn.filter((a: any) => a.isAdminAnn === true));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -37,28 +53,14 @@ export const AdminAnnouncements = () => {
   const [mediaType, setMediaType] = useState<'NONE' | 'IMAGE' | 'VIDEO'>('NONE');
   const [mediaUrl, setMediaUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const q = query(
-      collection(db, 'announcements'), 
-      where('isGlobal', '==', true), // We'll mark admin announcements as global
-      orderBy('createdAt', 'desc')
-    );
-    
-    // Fallback query if isGlobal isn't indexed yet or we just want all
-    const qAll = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(qAll, (snap) => {
-      // Filter only those created by an admin or marked as global for this view
-      const allAnn = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAnnouncements(allAnn.filter((a: any) => a.isAdminAnn || !a.teacherId));
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
+  const [expiresAt, setExpiresAt] = useState('');
+  const [showOnLogin, setShowOnLogin] = useState(false);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSuperAdmin) {
+      alert('عذراً، لا تملك صلاحية نشر الإعلانات. يرجى مراجعة المسؤول.');
+      return;
+    }
     if (!title || !content) {
       alert('الرجاء إدخال العنوان والمحتوى.');
       return;
@@ -67,18 +69,20 @@ export const AdminAnnouncements = () => {
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'announcements'), {
-        title,
-        content,
-        targetRole,
-        stage: targetRole === 'STUDENT' ? stage : '',
-        grade: targetRole === 'STUDENT' ? grade : '',
-        mediaType,
-        mediaUrl,
+        title: title || '',
+        content: content || '',
+        targetRole: targetRole || 'ALL',
+        stage: targetRole === 'STUDENT' ? (stage || '') : '',
+        grade: targetRole === 'STUDENT' ? (grade || '') : '',
+        mediaType: mediaType || 'NONE',
+        mediaUrl: mediaUrl || '',
         isAdminAnn: true,
         isGlobal: true,
-        creatorId: profile?.uid,
-        creatorName: profile?.fullName,
-        createdAt: new Date().toISOString()
+        creatorId: user?.uid || profile?.uid || 'system-admin',
+        creatorName: profile?.fullName || user?.displayName || 'الإدارة',
+        createdAt: new Date().toISOString(),
+        expiresAt: expiresAt || null,
+        showOnLogin: showOnLogin || false
       });
       
       // Reset form
@@ -89,10 +93,12 @@ export const AdminAnnouncements = () => {
       setGrade('');
       setMediaType('NONE');
       setMediaUrl('');
+      setExpiresAt('');
+      setShowOnLogin(false);
       setIsAdding(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding announcement:", error);
-      alert('حدث خطأ أثناء إضافة الإعلان.');
+      alert(`حدث خطأ أثناء إضافة الإعلان: ${error.message || 'خطأ غير معروف'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -116,7 +122,7 @@ export const AdminAnnouncements = () => {
           </h2>
           <p className="text-slate-500 font-bold">قم بنشر إعلانات تظهر للطلاب أو المدرسين أو للجميع</p>
         </div>
-        {!isAdding && (
+        {isSuperAdmin && !isAdding && (
           <Button 
             variant="primary" 
             onClick={() => setIsAdding(true)}
@@ -261,6 +267,31 @@ export const AdminAnnouncements = () => {
                       )}
                     </div>
                   )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-50">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 mr-2 uppercase tracking-widest">تاريخ الانتهاء (اختياري)</label>
+                      <Input 
+                        type="date"
+                        className="rounded-2xl h-14 bg-slate-50 border-none font-bold"
+                        value={expiresAt}
+                        onChange={(e) => setExpiresAt(e.target.value)}
+                      />
+                      <p className="text-[10px] text-slate-400 font-bold mr-2">سيختفي الإعلان تلقائياً بعد هذا التاريخ</p>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                      <div className="space-y-1">
+                        <label className="text-sm font-black text-slate-700">عرض في صفحة الدخول</label>
+                        <p className="text-[10px] text-slate-400 font-bold">تثبيت كإعلان ترويجي للمنصة</p>
+                      </div>
+                      <input 
+                        type="checkbox"
+                        checked={showOnLogin}
+                        onChange={(e) => setShowOnLogin(e.target.checked)}
+                        className="h-6 w-6 rounded-lg accent-brand-primary cursor-pointer"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -324,6 +355,21 @@ export const AdminAnnouncements = () => {
                       {ann.grade}
                    </div>
                 )}
+                {ann.showOnLogin && (
+                   <div className="bg-brand-mint text-white px-3 py-1 rounded-lg text-[10px] font-black shadow-lg flex items-center gap-1">
+                      <Target className="h-3 w-3" />
+                      معروض بالدخول
+                   </div>
+                )}
+                {ann.expiresAt && (
+                   <div className={cn(
+                     "px-3 py-1 rounded-lg text-[10px] font-black shadow-lg flex items-center gap-1",
+                     new Date(ann.expiresAt) < new Date() ? "bg-red-500 text-white" : "bg-slate-700 text-white"
+                   )}>
+                      <Clock className="h-3 w-3" />
+                      {new Date(ann.expiresAt) < new Date() ? 'منتهي' : `ينتهي ${new Date(ann.expiresAt).toLocaleDateString('ar-EG')}`}
+                   </div>
+                )}
               </div>
             </div>
 
@@ -333,12 +379,14 @@ export const AdminAnnouncements = () => {
                   <Calendar className="h-3 w-3" />
                   {new Date(ann.createdAt).toLocaleDateString('ar-EG')}
                 </div>
-                <button 
-                  onClick={() => handleDelete(ann.id)}
-                  className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {isSuperAdmin && (
+                  <button 
+                    onClick={() => handleDelete(ann.id)}
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <h3 className="text-xl font-black text-slate-800 leading-tight">{ann.title}</h3>
               <p className="text-sm text-slate-500 font-medium leading-relaxed line-clamp-3">{ann.content}</p>

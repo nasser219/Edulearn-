@@ -8,7 +8,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../../firebase';
 import { getStageLabel, getGradeLabel } from '../../lib/constants';
 
@@ -68,6 +68,8 @@ interface AuthContextType {
   isTeacher: () => boolean;
   isStudent: () => boolean;
   hasRole: (roles: ('STUDENT' | 'TEACHER' | 'ADMIN')[]) => boolean;
+  hasPermission: (permission: string) => boolean;
+  allAdminRoles: Record<string, { role: 'SUPER' | 'MODERATOR', permissions: string[] }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -135,6 +137,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getStageLabelLocal = (stage?: string) => getStageLabel(stage);
   const getGradeLabelLocal = (grade?: string) => getGradeLabel(grade);
 /* Removed old switch/object maps as they are now in constants.ts */
+
+  const [allAdminRoles, setAllAdminRoles] = useState<Record<string, { role: 'SUPER' | 'MODERATOR', permissions: string[] }>>({});
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'admin_roles'), (snap: any) => {
+      const roles: any = {};
+      snap.forEach((doc: any) => {
+        roles[doc.id.toLowerCase()] = doc.data();
+      });
+      setAllAdminRoles(roles);
+    });
+  }, []);
 
   const login = async () => {
     setIsLoggingIn(true);
@@ -224,18 +238,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
-    const adminEmails = [
-      'ayaayad147258@gmail.com',
-      'nasseryasser832000@gmail.com',
-      'admin@edu.com'
-    ];
-    const userEmailNormalized = user?.email?.trim().toLowerCase();
-    return profile?.role === 'ADMIN' || (userEmailNormalized && adminEmails.includes(userEmailNormalized)) || false;
+    const userEmailNormalized = (user?.email || profile?.email)?.trim().toLowerCase();
+    if (!userEmailNormalized) return profile?.role === 'ADMIN';
+    
+    // Hardcoded safety for the main developer/owner just in case
+    const ownerEmails = ['ayaayad147258@gmail.com', 'nasseryasser832000@gmail.com', 'admin@edu.com'];
+    if (ownerEmails.includes(userEmailNormalized)) return true;
+
+    const adminData = allAdminRoles[userEmailNormalized];
+    return profile?.role === 'ADMIN' || !!adminData || false;
   };
+
+  const hasPermission = (permission: string) => {
+    const userEmailNormalized = (user?.email || profile?.email)?.trim().toLowerCase();
+    
+    // 1. Owners get universal access
+    const ownerEmails = ['ayaayad147258@gmail.com', 'nasseryasser832000@gmail.com', 'admin@edu.com'];
+    if (userEmailNormalized && ownerEmails.includes(userEmailNormalized)) return true;
+
+    if (!userEmailNormalized) return false;
+
+    // 2. Fetch specific dynamic admin permissions
+    const adminData = allAdminRoles[userEmailNormalized];
+    
+    // 3. SUPER admins get universal access automatically
+    if (adminData?.role === 'SUPER') return true;
+
+    // 4. Moderators must explicitly have the permission
+    return adminData?.permissions?.includes(permission) || false;
+  };
+
   const isTeacher = () => profile?.role === 'TEACHER';
   const isStudent = () => profile?.role === 'STUDENT';
   const hasRole = (roles: ('STUDENT' | 'TEACHER' | 'ADMIN')[]) => {
-    if (isAdmin()) return true; // Admins usually have all roles
+    if (isAdmin()) return true; 
     return profile ? roles.includes(profile.role) : false;
   };
 
@@ -255,7 +291,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAdmin,
       isTeacher,
       isStudent,
-      hasRole
+      hasRole,
+      hasPermission,
+      allAdminRoles
     }}>
       {children}
     </AuthContext.Provider>

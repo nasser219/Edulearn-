@@ -58,6 +58,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [violations, setViolations] = useState<any[]>([]);
   const [allResults, setAllResults] = useState<any[]>([]);
+  const [authorizedQuizzes, setAuthorizedQuizzes] = useState<string[]>([]);
   const [upcomingQuizzes, setUpcomingQuizzes] = useState<any[]>([]);
   const [selectedResult, setSelectedResult] = useState<any | null>(null);
   const [gradingScore, setGradingScore] = useState<string>('');
@@ -206,6 +207,43 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
       unsubscribeStudentResults();
     };
   }, [profile, isStudent, isTeacher]);
+
+  // Fetch implicitly authorized quizzes from enrolled courses
+  useEffect(() => {
+    if (enrollments.length > 0) {
+      const fetchAuthorizedQuizzes = async () => {
+        try {
+          const allAuthorized = new Set<string>();
+          const { getDocs, query, collection, where } = await import('firebase/firestore');
+          
+          for (let i = 0; i < enrollments.length; i += 10) {
+            const chunk = enrollments.slice(i, i + 10);
+            const coursesRef = collection(db, 'courses');
+            const q = query(coursesRef, where('__name__', 'in', chunk));
+            const snap = await getDocs(q);
+            
+            snap.docs.forEach(doc => {
+              const data = doc.data();
+              if (data.sections) {
+                data.sections.forEach((section: any) => {
+                  section.lessons?.forEach((lesson: any) => {
+                    if (lesson.type === 'QUIZ' && lesson.contentUrl) {
+                      allAuthorized.add(lesson.contentUrl);
+                    }
+                  });
+                });
+              }
+            });
+          }
+          setAuthorizedQuizzes(Array.from(allAuthorized));
+        } catch (error) {
+          console.error("Error fetching authorized quizzes:", error);
+        }
+      };
+      
+      fetchAuthorizedQuizzes();
+    }
+  }, [enrollments]);
 
   // Handle student-specific initial state
   useEffect(() => {
@@ -845,7 +883,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
                     </div>
 
                     <div className="pt-4">
-                      {isAdmin() || isTeacher() || enrollments.includes(quiz.id) ? (
+                      {isAdmin() || isTeacher() || enrollments.includes(quiz.id) || authorizedQuizzes.includes(quiz.id) ? (
                         <Button
                           variant={studentResultsData.some(r => r.courseId === quiz.id) ? "outline" : "primary"}
                           className="w-full h-12 rounded-xl font-black shadow-lg shadow-brand-primary/10 group-hover:shadow-brand-primary/30 transition-all disabled:opacity-50"

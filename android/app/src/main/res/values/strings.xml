@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">npm run buildnpx cap add androidnpx cap copynpx cap open android</string>
+    <string name="title_activity_main">npm run buildnpx cap add androidnpx cap copynpx cap open android</string>
+    <string name="package_name">com.tarbaweyeen.app</string>
+    <string name="custom_url_scheme">com.tarbaweyeen.app</string>
+</resources>

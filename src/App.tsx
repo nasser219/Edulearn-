@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, limit, onSnapshot, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, limit, onSnapshot, doc, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
@@ -27,7 +27,7 @@ import { TeacherAnnouncements } from './components/dashboard/TeacherAnnouncement
 import { Security } from './components/dashboard/Security';
 import { TeachersList } from './components/courses/TeachersList';
 import { TeacherProfileView } from './components/courses/TeacherProfileView';
-import { GraduationCap, ShieldCheck, Mail, Lock, ArrowLeft, Clock, ShieldAlert, Users, ChevronRight, LogOut } from 'lucide-react';
+import { GraduationCap, ShieldCheck, Mail, Lock, ArrowLeft, Clock, ShieldAlert, Users, ChevronRight, LogOut, Megaphone, Target } from 'lucide-react';
 import { StudentProfile } from './components/dashboard/StudentProfile';
 import { MessageCenter } from './components/dashboard/MessageCenter';
 import { StudentResults } from './components/dashboard/StudentResults';
@@ -302,8 +302,8 @@ const AuthHero = ({ onLoginClick, onJoinClick, onBenefitsClick, title, subtitle,
   </div>
 );
 
-const AuthSidebar = ({ title, subtitle, onJoinClick, onLoginClick, authMode }: {
-  title?: string, subtitle?: string, onJoinClick: () => void, onLoginClick: () => void, authMode: 'LOGIN' | 'SIGNUP'
+const AuthSidebar = ({ title, subtitle, onJoinClick, onLoginClick, authMode, loginAds }: {
+  title?: string, subtitle?: string, onJoinClick: () => void, onLoginClick: () => void, authMode: 'LOGIN' | 'SIGNUP', loginAds: any[]
 }) => (
   <div className="h-full min-h-[700px] w-full bg-slate-900 rounded-[3.5rem] p-10 sm:p-12 flex flex-col justify-between relative overflow-hidden shadow-premium group" dir="rtl">
     <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-primary/30 transition-colors"></div>
@@ -329,20 +329,76 @@ const AuthSidebar = ({ title, subtitle, onJoinClick, onLoginClick, authMode }: {
         </button>
       </div>
     </div>
-    <div className="relative z-10 flex justify-end mt-10 sm:mt-12">
-      <div className="w-44 sm:w-52 h-[360px] sm:h-[420px] bg-slate-800 rounded-[2.5rem] border-[10px] border-slate-700 shadow-2xl relative overflow-hidden">
-        <div className="p-3 sm:p-4 pt-8 sm:pt-10 space-y-4 sm:space-y-5">
-          <div className="h-20 sm:h-24 bg-brand-primary/10 rounded-2xl border border-white/5"></div>
-          <div className="space-y-2">
-            <div className="h-2 bg-slate-700 rounded-full w-full"></div>
-            <div className="h-2 bg-slate-700 rounded-full w-5/6"></div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 pt-3 sm:pt-4">
-            <div className="h-14 sm:h-16 bg-brand-secondary/10 rounded-2xl border border-white/5"></div>
-            <div className="h-14 sm:h-16 bg-brand-primary/10 rounded-2xl border border-white/5"></div>
+    <div className="relative z-10 flex flex-col items-center justify-end mt-10 sm:mt-12 gap-8 w-full max-w-lg mx-auto">
+      {loginAds.length > 0 ? (
+        <div className="w-full space-y-6">
+           <div className="flex items-center justify-between px-2">
+              <h3 className="text-white font-black text-xl flex items-center gap-3">
+                 عروض حصرية ✨ <div className="h-2 w-2 bg-brand-primary rounded-full animate-ping" />
+              </h3>
+              <span className="text-slate-400 text-xs font-bold">{loginAds.length} إعلانات نشطة</span>
+           </div>
+           
+           <div className="flex flex-col gap-5 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar pb-4">
+              {loginAds.map((ad, idx) => (
+                <div key={ad.id} className={cn(
+                  "w-full bg-white/5 backdrop-blur-3xl rounded-[2.5rem] p-6 border border-white/10 hover:bg-white/10 transition-all duration-500 group/ad animate-in fade-in slide-in-from-right-8",
+                  idx === 0 ? "ring-2 ring-brand-primary/30" : ""
+                )}>
+                  <div className="flex items-center justify-between mb-4">
+                     <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 bg-brand-primary/20 rounded-lg flex items-center justify-center">
+                          <Target className="h-4 w-4 text-brand-primary" />
+                        </div>
+                        <span className="text-brand-primary font-black text-[10px] uppercase tracking-tighter">إعلان مميز</span>
+                     </div>
+                     {ad.expiresAt && (
+                       <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 bg-black/20 px-3 py-1 rounded-full">
+                          <Clock className="h-3 w-3" />
+                          ينتهي قريباً
+                       </div>
+                     )}
+                  </div>
+
+                  <div className="flex gap-5">
+                    {ad.mediaUrl && ad.mediaType === 'IMAGE' && (
+                      <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 shadow-lg border-2 border-white/5">
+                        <img src={ad.mediaUrl} className="w-full h-full object-cover group-hover/ad:scale-110 transition-transform duration-700" alt="Ad" />
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <h4 className="text-lg font-black text-white leading-tight group-hover/ad:text-brand-primary transition-colors">{ad.title}</h4>
+                      <p className="text-slate-400 font-bold text-xs leading-relaxed line-clamp-3">{ad.content}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                     <button className="text-[10px] font-black text-brand-primary hover:text-white transition-colors flex items-center gap-2">
+                        التفاصيل كاملة <ChevronRight className="h-3 w-3 rotate-180" />
+                     </button>
+                     <div className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-black text-slate-500">
+                        #إعلان_{idx + 1}
+                     </div>
+                  </div>
+                </div>
+              ))}
+           </div>
+        </div>
+      ) : (
+        <div className="w-44 sm:w-52 h-[360px] sm:h-[420px] bg-slate-800 rounded-[2.5rem] border-[10px] border-slate-700 shadow-2xl relative overflow-hidden opacity-50">
+          <div className="p-3 sm:p-4 pt-8 sm:pt-10 space-y-4 sm:space-y-5">
+            <div className="h-20 sm:h-24 bg-brand-primary/10 rounded-2xl border border-white/5"></div>
+            <div className="space-y-2">
+              <div className="h-2 bg-slate-700 rounded-full w-full"></div>
+              <div className="h-2 bg-slate-700 rounded-full w-5/6"></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-3 sm:pt-4">
+              <div className="h-14 sm:h-16 bg-brand-secondary/10 rounded-2xl border border-white/5"></div>
+              <div className="h-14 sm:h-16 bg-brand-primary/10 rounded-2xl border border-white/5"></div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   </div>
 );
@@ -359,6 +415,24 @@ export default function App() {
     teachersTitle?: string; teachersDesc?: string; benefitsTitle?: string;
     facebookUrl?: string; instagramUrl?: string; linkedinUrl?: string;
   }>({});
+
+  const [loginAds, setLoginAds] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'announcements'),
+      where('showOnLogin', '==', true)
+    );
+    return onSnapshot(q, (snap) => {
+      const allAds = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      const activeAds = allAds
+        .filter(ad => !ad.expiresAt || new Date(ad.expiresAt) > new Date())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setLoginAds(activeAds);
+    }, (error) => {
+      console.error("Error fetching login ads:", error);
+    });
+  }, []);
 
   useEffect(() => {
     return onSnapshot(doc(db, 'settings', 'system'), (snap) => {
@@ -594,10 +668,11 @@ export default function App() {
                   </div>
                 </div>
                 <div className="hidden lg:block h-full">
-                  <AuthSidebar title={landingSettings.heroTitle} subtitle={landingSettings.heroSubtitle}
-                    onJoinClick={() => setLandingView('TEACHERS')}
-                    onLoginClick={() => setAuthMode(authMode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')}
-                    authMode={authMode} />
+                    <AuthSidebar title={landingSettings.heroTitle} subtitle={landingSettings.heroSubtitle}
+                      onJoinClick={() => setLandingView('TEACHERS')}
+                      onLoginClick={() => setAuthMode(authMode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')}
+                      authMode={authMode}
+                      loginAds={loginAds} />
                 </div>
               </div>
             </div>
@@ -815,7 +890,11 @@ export default function App() {
             {currentView === 'PAYMENTS' && <Payments />}
             {currentView === 'SECURITY' && <Security />}
             {currentView === 'PERFORMANCE_AI' && <PerformanceAI onBack={() => setCurrentView('DASHBOARD')} />}
-            {isAdmin() && currentView === 'ANNOUNCEMENTS' && <TeacherAnnouncements />}
+            {isAdmin() && currentView === 'ANNOUNCEMENTS' && <div className="p-8 text-center bg-white rounded-3xl shadow-premium border-2 border-dashed border-slate-100">
+              <Megaphone className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-400 font-bold">يرجى استخدام لوحة تحكم السوبر أدمن لإدارة الإعلانات.</p>
+              <Button onClick={() => setCurrentView('DASHBOARD')} className="mt-4 rounded-xl">الذهاب للوحة التحكم</Button>
+            </div>}
             {(isAdmin() || isTeacher()) && currentView === 'NOTIFICATION_CENTER' && <NotificationCenter />}
             {currentView === 'MESSAGES' && <MessageCenter preselectedContactId={selectedContactId} />}
             {currentView === 'SETTINGS' && (isStudent() ? <StudentProfile /> : <Settings />)}

@@ -223,6 +223,61 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
 
       if (editCourseId) {
         await updateDoc(doc(db, 'courses', editCourseId), courseData);
+
+        // Automated Notification for Course Update
+        try {
+          const enrollmentsQuery = query(
+            collection(db, 'enrollments'),
+            where('courseId', '==', editCourseId),
+            where('status', '==', 'APPROVED')
+          );
+          const enrollmentsSnap = await getDocs(enrollmentsQuery);
+          
+          if (!enrollmentsSnap.empty) {
+            let message = profile?.whatsappTemplateCourseUpdate || 'تم تحديث مادة الكورس: [course]. يرجى المراجعة لمعرفة الجديد يا [student]!';
+            message = message
+              .replace(/\[course\]/g, courseTitle)
+              .replace(/\[teacher\]/g, profile?.fullName || 'معلمك');
+
+            // Collect student IDs
+            const studentIds = enrollmentsSnap.docs.map(doc => doc.data().studentId);
+            
+            if (studentIds.length > 0) {
+              const studentsQuery = query(collection(db, 'users'), where('__name__', 'in', studentIds));
+              const studentsSnap = await getDocs(studentsQuery);
+              
+              for (const studentDoc of studentsSnap.docs) {
+                const studentData = studentDoc.data();
+                
+                let studentPersonalMessage = message.replace(/\[student\]/g, studentData.fullName?.split(' ')[0] || 'طالبنا');
+
+                const numbers: string[] = [];
+                if (sendToStudent && studentData.phone) numbers.push(studentData.phone);
+                if (sendToParent) {
+                  if (studentData.parentPhone) numbers.push(studentData.parentPhone);
+                  if (studentData.fatherPhone) numbers.push(studentData.fatherPhone);
+                }
+
+                const phones = Array.from(new Set(
+                  numbers
+                    .filter(Boolean)
+                    .map(p => typeof p === 'string' ? normalizePhoneNumber(p) : '')
+                    .filter(Boolean)
+                ));
+                for (const phone of phones) {
+                  await sendWhatsAppNotification(phone, studentPersonalMessage, {
+                    email: profile?.whatsappEmail,
+                    password: profile?.whatsappPassword,
+                    token: profile?.whatsappToken
+                  });
+                }
+              }
+            }
+          }
+        } catch (waError) {
+          console.error("Error sending course update WhatsApp notification:", waError);
+        }
+
       } else {
         const newCourseRef = await addDoc(collection(db, 'courses'), {
           ...courseData,
@@ -249,6 +304,9 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
 
             for (const studentDoc of studentsSnap.docs) {
               const studentData = studentDoc.data();
+              
+              let studentPersonalMessage = message.replace(/\[student\]/g, studentData.fullName?.split(' ')[0] || 'طالبنا');
+
               const numbers: string[] = [];
               if (sendToStudent && studentData.phone) numbers.push(studentData.phone);
               if (sendToParent) {
@@ -263,7 +321,7 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
                   .filter(Boolean)
               ));
               for (const phone of phones) {
-                await sendWhatsAppNotification(phone, message, {
+                await sendWhatsAppNotification(phone, studentPersonalMessage, {
                   email: profile?.whatsappEmail,
                   password: profile?.whatsappPassword,
                   token: profile?.whatsappToken

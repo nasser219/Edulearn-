@@ -100,28 +100,13 @@ export const StudentDashboard = ({ onSelectCourse, onNavigate }: { onSelectCours
         // Activity is already fetched from 'student_activity' collection
         setRecentActivity(activitySnap.docs.map(doc => doc.data()));
 
-        // Fetch Targeted Announcements
-        const teacherIds = Array.from(new Set(actualCourses.filter(c => c.teacherId).map(c => c.teacherId)));
-        
-        // 1. Fetch Teacher Announcements
-        let teacherAnnouncements: any[] = [];
-        if (teacherIds.length > 0) {
-          const annQ = query(
-            collection(db, 'announcements'), 
-            where('teacherId', 'in', teacherIds.slice(0, 10)),
-            orderBy('createdAt', 'desc'),
-            limit(5)
-          );
-          const annSnap = await getDocs(annQ);
-          teacherAnnouncements = annSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        }
-
-        // 2. Fetch Admin Announcements (Global or Student targeted)
+        // Fetch Only Admin Announcements (Global or Student targeted)
+        // Teachers are no longer allowed to post targeted announcements
         const adminAnnQ = query(
           collection(db, 'announcements'),
           where('isAdminAnn', '==', true),
           orderBy('createdAt', 'desc'),
-          limit(5)
+          limit(10)
         );
         const adminAnnSnap = await getDocs(adminAnnQ);
         const adminAnn = adminAnnSnap.docs
@@ -129,17 +114,16 @@ export const StudentDashboard = ({ onSelectCourse, onNavigate }: { onSelectCours
           .filter(ann => {
             if (ann.targetRole === 'ALL') return true;
             if (ann.targetRole === 'STUDENT') {
+              if (ann.expiresAt && new Date(ann.expiresAt) < new Date()) return false;
               if (ann.stage && ann.grade) return ann.stage === profile.stage && ann.grade === profile.grade;
               if (ann.stage) return ann.stage === profile.stage;
               return true;
             }
+            if (ann.expiresAt && new Date(ann.expiresAt) < new Date()) return false;
             return false;
           });
 
-        const combinedAnn = [...adminAnn, ...teacherAnnouncements].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setAnnouncements(combinedAnn.slice(0, 5));
+        setAnnouncements(adminAnn.slice(0, 5));
 
         // Fetch Upcoming Quizzes (Dynamic)
         const upcomingQ = query(

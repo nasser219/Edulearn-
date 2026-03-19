@@ -16,6 +16,7 @@ export const VideoPlayer = ({ src, studentName, studentPhone, ipAddress, courseT
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isViolation, setIsViolation] = useState(false);
   const [violationType, setViolationType] = useState<SecurityEventType | null>(null);
+  const [maxWatchedTime, setMaxWatchedTime] = useState(0);
 
   useSecurityDetection((type) => {
     setIsViolation(true);
@@ -42,9 +43,19 @@ export const VideoPlayer = ({ src, studentName, studentPhone, ipAddress, courseT
         src={src}
         className={`w-full h-full object-contain bg-black transition-all ${isViolation ? 'blur-2xl grayscale' : ''}`}
         controls={!isViolation}
-        playsInline
-        webkit-playsinline="true"
+        playsInline={true}
+        preload="auto"
         controlsList="nodownload"
+        onTimeUpdate={() => {
+          if (!videoRef.current) return;
+          const current = videoRef.current.currentTime;
+          // Prevent seeking forward by more than 2 seconds (allow natural playback)
+          if (current > maxWatchedTime + 2) {
+            videoRef.current.currentTime = maxWatchedTime;
+          } else {
+            setMaxWatchedTime(Math.max(maxWatchedTime, current));
+          }
+        }}
         onEnded={onEnded}
         onContextMenu={(e) => e.preventDefault()}
       >

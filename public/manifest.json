@@ -1,0 +1,17 @@
+{
+  "name": "التربويين - المنصة التعليمية",
+  "short_name": "التربويين",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#a855f7",
+  "description": "المنصة التعليمية الرائدة للطلاب والمعلمين",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

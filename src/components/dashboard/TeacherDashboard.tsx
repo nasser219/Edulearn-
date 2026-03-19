@@ -113,7 +113,10 @@ export const TeacherDashboard = ({ onNavigate, onEditCourse }: { onNavigate?: (v
         const snap = await getDocs(q);
         const adminAnn = snap.docs
           .map(doc => ({ id: doc.id, ...doc.data() as any }))
-          .filter(ann => ann.targetRole === 'ALL' || ann.targetRole === 'TEACHER');
+          .filter(ann => {
+            if (ann.expiresAt && new Date(ann.expiresAt) < new Date()) return false;
+            return ann.targetRole === 'ALL' || ann.targetRole === 'TEACHER';
+          });
         setAnnouncements(adminAnn);
       } catch (error) {
         console.error("Error fetching admin announcements:", error);

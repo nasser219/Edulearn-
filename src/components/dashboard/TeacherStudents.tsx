@@ -621,9 +621,13 @@ export const TeacherStudents = ({ selectedCourseId, onBack }: { selectedCourseId
                      >
                         {isEditing ? 'إلغاء التعديل' : 'تعديل بيانات الطالب 📁'}
                      </Button>
-                     <Button variant="ghost" onClick={() => setSelectedStudent(null)} className="h-12 w-12 rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-red-500">
+                     <button 
+                       onClick={() => setSelectedStudent(null)} 
+                       className="h-12 w-12 flex items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all font-black"
+                       title="إغلاق"
+                     >
                         <X className="h-6 w-6" />
-                     </Button>
+                     </button>
                   </div>
               </div>
 
