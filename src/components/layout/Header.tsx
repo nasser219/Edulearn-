@@ -2,10 +2,15 @@ import { LogOut, User as UserIcon, Bell, Menu, Search, Accessibility, UserPlus, 
 import { Button } from '../ui/Button';
 import { useEducatorsAuth } from '../auth/AuthProvider';
 import { useState } from 'react';
+import { useNotifications } from '../../hooks/useNotifications';
+import { NotificationList } from '../notifications/NotificationList';
 
 export const Header = ({ onMenuClick, onNavigate }: { onMenuClick?: () => void, onNavigate?: (view: any) => void }) => {
   const { user, logout, profile } = useEducatorsAuth();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  
+  const { unreadCount } = useNotifications();
 
   const getRoleLabel = () => {
     if (profile?.role === 'ADMIN') return 'Super Admin 🛡️';
@@ -74,10 +79,36 @@ export const Header = ({ onMenuClick, onNavigate }: { onMenuClick?: () => void, 
               </button>
 
               {/* Notifications */}
-              <Button variant="ghost" className="relative h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/30 transition-all p-0">
-                <Bell className="h-5 w-5 text-slate-700" />
-                <span className="absolute top-2.5 left-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white/40 animate-pulse"></span>
-              </Button>
+              <div className="relative">
+                <Button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  variant="ghost" 
+                  className="relative h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/30 transition-all p-0"
+                >
+                  <Bell className="h-5 w-5 text-slate-700" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-2.5 left-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white/40 animate-pulse"></span>
+                  )}
+                </Button>
+
+                {showNotifications && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 bg-transparent" 
+                      onClick={() => setShowNotifications(false)}
+                    />
+                    <div className="absolute top-14 left-0 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-100px)] z-50 animate-in slide-in-from-top-4 duration-300 shadow-2xl rounded-[2.5rem]">
+                      <NotificationList 
+                        onClose={() => setShowNotifications(false)}
+                        onNavigate={(view) => {
+                          setShowNotifications(false);
+                          onNavigate?.(view);
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Profile */}
               <div

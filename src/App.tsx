@@ -32,6 +32,7 @@ import { StudentProfile } from './components/dashboard/StudentProfile';
 import { MessageCenter } from './components/dashboard/MessageCenter';
 import { StudentResults } from './components/dashboard/StudentResults';
 import { NotificationCenter } from './components/dashboard/NotificationCenter';
+import { NotificationList } from './components/notifications/NotificationList';
 import { UserRole } from './types';
 
 type View = 'DASHBOARD' | 'COURSE_VIEWER' | 'QUIZ' | 'COURSES' | 'MANAGE_COURSES' | 'HOMEWORK' | 'QUIZZES' | 'CREATE_QUIZ' | 'STUDENTS' | 'REPORTS' | 'PAYMENTS' | 'SECURITY' | 'SETTINGS' | 'PERFORMANCE_AI' | 'ANNOUNCEMENTS' | 'TEACHERS' | 'MESSAGES' | 'TEACHER_PROFILE' | 'STUDENT_RESULTS' | 'NOTIFICATION_CENTER';
@@ -896,6 +897,11 @@ export default function App() {
               <Button onClick={() => setCurrentView('DASHBOARD')} className="mt-4 rounded-xl">الذهاب للوحة التحكم</Button>
             </div>}
             {(isAdmin() || isTeacher()) && currentView === 'NOTIFICATION_CENTER' && <NotificationCenter />}
+            {isStudent() && currentView === 'NOTIFICATION_CENTER' && (
+              <div className="max-w-3xl mx-auto h-[calc(100vh-8rem)] pt-6">
+                <NotificationList onClose={() => setCurrentView('DASHBOARD')} onNavigate={(view: any) => setCurrentView(view)} />
+              </div>
+            )}
             {currentView === 'MESSAGES' && <MessageCenter preselectedContactId={selectedContactId} />}
             {currentView === 'SETTINGS' && (isStudent() ? <StudentProfile /> : <Settings />)}
 
