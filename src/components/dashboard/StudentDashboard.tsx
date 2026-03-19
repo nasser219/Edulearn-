@@ -144,96 +144,96 @@ export const StudentDashboard = ({ onSelectCourse, onNavigate }: { onSelectCours
   }, [profile]);
 
   return (
-    <div className="space-y-12 pb-12" dir="rtl">
+    <div className="space-y-8 sm:space-y-12 pb-8 sm:pb-12 px-2 sm:px-0" dir="rtl">
       {/* Featured Hero Section */}
-      <div className="relative overflow-hidden bg-brand-primary rounded-[3rem] p-8 md:p-12 text-white shadow-2xl shadow-brand-primary/30">
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="max-w-xl text-right space-y-6">
-            <h1 className="text-4xl md:text-5xl font-black leading-tight tracking-tight">
+      <div className="relative overflow-hidden bg-brand-primary rounded-3xl md:rounded-[3rem] p-6 sm:p-8 md:p-12 text-white shadow-2xl shadow-brand-primary/30">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
+          <div className="w-full md:max-w-xl text-center md:text-right space-y-4 md:space-y-6 flex flex-col items-center md:items-start">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight">
               ذاكر في <span className="text-brand-secondary">أي وقت</span> <br />
-              في <span className="text-brand-secondary underline decoration-wavy underline-offset-8">أي مكان</span>
+              في <span className="text-brand-secondary underline decoration-wavy underline-offset-4 md:underline-offset-8">أي مكان</span>
             </h1>
-            <p className="text-white/80 text-lg md:text-xl font-medium max-w-md leading-relaxed">
+            <p className="text-white/80 text-base sm:text-lg md:text-xl font-medium max-w-md leading-relaxed mx-auto md:mx-0">
               يعني دلوقتي وفرنالك منصة تقدر تذاكر من خلالها كل المواد بضغطة واحدة وبأفضل جودة.
             </p>
-            <div className="flex gap-4 pt-4">
+            <div className="grid grid-cols-2 lg:flex lg:flex-wrap gap-3 sm:gap-4 pt-4 w-full lg:w-auto">
               <Button 
                 onClick={() => onNavigate?.('TEACHERS')}
-                className="bg-brand-secondary text-brand-primary hover:bg-white hover:text-brand-primary px-8 py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-black/10"
+                className="bg-brand-secondary text-brand-primary hover:bg-white hover:text-brand-primary px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg transition-all shadow-xl shadow-black/10 w-full lg:w-auto"
               >
                 تصفح الكورسات
               </Button>
-              <Button variant="ghost" className="text-white border-2 border-white/30 hover:bg-white/10 px-8 py-4 rounded-2xl font-black text-lg" onClick={() => onNavigate?.('QUIZZES')}>
+              <Button variant="ghost" className="text-white border-2 border-white/30 hover:bg-white/10 px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg w-full lg:w-auto" onClick={() => onNavigate?.('QUIZZES')}>
                 جدول الامتحانات
               </Button>
               <Button 
                 onClick={() => onNavigate?.('STUDENT_RESULTS')}
-                className="bg-brand-mint text-white hover:bg-white hover:text-brand-mint px-8 py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-black/10 flex items-center gap-2"
+                className="bg-brand-mint text-white hover:bg-white hover:text-brand-mint px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-1.5 sm:gap-2 w-full lg:w-auto"
               >
-                <TrendingUp className="h-5 w-5" />
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 hidden sm:block" />
                 تحليل أدائي
               </Button>
               <Button 
                 onClick={() => onNavigate?.('HOMEWORK')}
-                className="bg-white text-brand-primary hover:bg-brand-secondary hover:text-brand-primary px-8 py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-black/10"
+                className="bg-white text-brand-primary hover:bg-brand-secondary hover:text-brand-primary px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg transition-all shadow-xl shadow-black/10 w-full lg:w-auto"
               >
                 المهام 📝
               </Button>
             </div>
           </div>
-          <div className="relative w-full md:w-1/2 flex justify-center">
-            <div className="absolute inset-0 bg-white/10 rounded-full blur-[100px]"></div>
+          <div className="relative w-full md:w-1/2 flex justify-center mt-4 md:mt-0">
+            <div className="absolute inset-0 bg-white/10 rounded-full blur-[60px] md:blur-[100px]"></div>
             <img 
               src="/assets/hero_student.png" 
               alt="Heros Illustration" 
-              className="relative z-10 w-full max-w-sm drop-shadow-2xl animate-float"
+              className="relative z-10 w-3/4 max-w-[240px] md:max-w-sm drop-shadow-2xl animate-float"
             />
           </div>
         </div>
         
         {/* Abstract Background Shapes */}
-        <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-brand-secondary/20 rounded-full blur-3xl opacity-30"></div>
-        <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl opacity-20"></div>
+        <div className="absolute -left-10 md:-left-20 -bottom-10 md:-bottom-20 w-60 md:w-80 h-60 md:h-80 bg-brand-secondary/20 rounded-full blur-2xl md:blur-3xl opacity-30"></div>
+        <div className="absolute -right-10 md:-right-20 -top-10 md:-top-20 w-60 md:w-80 h-60 md:h-80 bg-white/10 rounded-full blur-2xl md:blur-3xl opacity-20"></div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {[
           { label: "الدورات المسجلة", value: stats.courses, icon: BookOpen, color: "bg-blue-50 text-blue-600" },
           { label: "ساعات الدراسة", value: `${stats.hours}س`, icon: Clock, color: "bg-cyan-50 text-cyan-600" },
           { label: "معدل الدرجات", value: `${stats.grade}%`, icon: GraduationCap, color: "bg-brand-secondary/10 text-brand-primary" },
           { label: "المهام المكتملة", value: stats.tasks, icon: FileText, color: "bg-green-50 text-green-600" },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[2rem] shadow-premium border border-slate-50 flex items-center gap-4 transition-transform hover:-translate-y-1">
-            <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center", stat.color)}>
-              <stat.icon className="h-7 w-7" />
+          <div key={i} className="bg-white flex-col sm:flex-row p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] shadow-premium border border-slate-50 flex items-center sm:items-start text-center sm:text-right gap-3 sm:gap-4 transition-transform hover:-translate-y-1">
+            <div className={cn("h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center", stat.color)}>
+              <stat.icon className="h-6 w-6 sm:h-7 sm:w-7" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-              <p className="text-2xl font-black text-slate-800 tracking-tight">{stat.value}</p>
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1 sm:mb-2">{stat.label}</p>
+              <p className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">{stat.value}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10">
         {/* Main Content - Courses */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="w-2 h-8 bg-brand-secondary rounded-full"></span>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <span className="w-1.5 sm:w-2 h-6 sm:h-8 bg-brand-secondary rounded-full"></span>
               واصل التعلم
             </h3>
             <Button 
               variant="ghost" 
               onClick={() => onNavigate?.('COURSES')}
-              className="text-brand-primary font-bold hover:bg-brand-primary/5 rounded-xl"
+              className="text-brand-primary font-bold hover:bg-brand-primary/5 rounded-xl text-sm sm:text-base px-3 sm:px-4"
             >
               عرض الكل
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
             {enrolledCourses.length > 0 ? enrolledCourses.map((course) => (
               <CourseCard 
                 key={course.id}
@@ -260,30 +260,30 @@ export const StudentDashboard = ({ onSelectCourse, onNavigate }: { onSelectCours
 
           <div className="space-y-6">
             <div className="flex items-center justify-between px-2">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <span className="w-2 h-8 bg-brand-primary rounded-full"></span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <span className="w-1.5 sm:w-2 h-6 sm:h-8 bg-brand-primary rounded-full"></span>
                 الاختبارات القادمة
               </h3>
             </div>
-            <Card className="rounded-[2.5rem] overflow-hidden border-none shadow-premium">
+            <Card className="rounded-3xl sm:rounded-[2.5rem] overflow-hidden border-none shadow-premium">
               <CardContent className="p-0">
                 {upcomingQuizzes.length > 0 ? upcomingQuizzes.map((quiz, i) => (
-                  <div key={i} className="flex items-center justify-between p-6 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-5">
+                  <div key={i} className="flex flex-col sm:flex-row items-center justify-between p-4 sm:p-6 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors gap-4">
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
                       <div className={cn(
-                        "h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm",
+                        "h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm",
                         quiz.color || (i % 2 === 0 ? "bg-orange-50 text-orange-600" : "bg-purple-50 text-purple-600")
                       )}>
-                        <GraduationCap className="h-7 w-7" />
+                        <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7" />
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black text-slate-800 leading-tight">{quiz.title}</p>
-                        <p className="text-sm text-slate-500 mt-1 font-medium">{quiz.subtext}</p>
+                      <div className="text-right flex-1">
+                        <p className="text-base sm:text-lg font-black text-slate-800 leading-tight">{quiz.title}</p>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">{quiz.subtext}</p>
                       </div>
                     </div>
                     <Button 
                       variant="primary" 
-                      className="rounded-xl px-6 font-bold shadow-md shadow-brand-primary/20"
+                      className="rounded-xl px-6 w-full sm:w-auto font-bold shadow-md shadow-brand-primary/20"
                       onClick={() => onNavigate?.('QUIZZES')}
                     >
                       استعد الآن

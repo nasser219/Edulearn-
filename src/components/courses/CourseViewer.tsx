@@ -19,6 +19,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
   const [enrollment, setEnrollment] = useState<any>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string>('');
 
   const allLessons = course?.sections?.flatMap((s: any) => s.lessons) || [];
   const currentLesson = allLessons[activeLessonIdx];
@@ -137,6 +138,38 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
     setShowPaymentModal(true);
   };
 
+  // Pre-fetch signed URLs for videos and images to avoid Vercel proxy issues while maintaining security
+  useEffect(() => {
+    const resolveMediaUrl = async () => {
+       const url = currentLesson?.contentUrl;
+       if (!url) {
+         setResolvedUrl('');
+         return;
+       }
+       
+       if (url.includes('cloudinary.com') && !isCloudinaryCollection(url) && (isVideo(url) || isImage(url))) {
+         let finalUrl = url;
+         if (isVideo(url) && finalUrl.includes('/upload/')) {
+            const parts = finalUrl.split('/upload/');
+            finalUrl = `${parts[0]}/upload/f_mp4,vc_h264,q_auto/${parts[1]}`;
+         }
+         try {
+            const res = await fetch(`/api/cloudinary/sign-delivery?url=${encodeURIComponent(finalUrl)}`);
+            const data = await res.json();
+            setResolvedUrl(data.signedUrl || finalUrl);
+         } catch(e) {
+            console.error("Failed to sign url:", e);
+            setResolvedUrl(finalUrl);
+         }
+       } else if (url.includes('cloudinary.com') && !isCloudinaryCollection(url)) {
+         setResolvedUrl(`/api/media/proxy?url=${encodeURIComponent(url)}`);
+       } else {
+         setResolvedUrl(url);
+       }
+    };
+    resolveMediaUrl();
+  }, [currentLesson?.contentUrl]);
+
   // Helper: Proxify Cloudinary URLs to bypass 401 and handle restricted access
   const getProxiedUrl = (url: string) => {
     if (!url) return '';
@@ -186,6 +219,12 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
         }
       }
 
+      // DO NOT proxy videos or images for display! Serverless functions break mobile video range requests.
+      if (isVideo(url) || isImage(url)) {
+        return finalUrl;
+      }
+
+      // For PDFs and Docs, proxying helps with CORS and download enforcement
       return `/api/media/proxy?url=${encodeURIComponent(finalUrl)}`;
     }
     return url;
@@ -291,7 +330,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                     </div>
                   ) : isVideo(currentLesson.contentUrl) || currentLesson.type === 'VIDEO' ? (
                     <VideoPlayer 
-                      src={getFileUrl(currentLesson.contentUrl)} 
+                      src={resolvedUrl || getFileUrl(currentLesson.contentUrl)} 
                       studentName={profile?.fullName || "طالب"}
                       studentPhone={profile?.phone || profile?.fatherPhone || "---"}
                       ipAddress="Active Session"
@@ -299,7 +338,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                       onEnded={() => markLessonCompleted(currentLesson.id)}
                     />
                   ) : isImage(currentLesson.contentUrl) || currentLesson.type === 'IMAGE' ? (
-                    <img src={getFileUrl(currentLesson.contentUrl)} className="w-full h-full object-contain" alt={currentLesson.title} />
+                    <img src={resolvedUrl || getFileUrl(currentLesson.contentUrl)} className="w-full h-full object-contain" alt={currentLesson.title} />
                   ) : isDoc(currentLesson.contentUrl) || currentLesson.type === 'PDF' ? (
                     <div className="flex flex-col h-full w-full">
                       <div className="bg-white p-4 flex items-center justify-between border-b border-slate-100 relative z-20">
