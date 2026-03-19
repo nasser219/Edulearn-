@@ -36,6 +36,9 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
     const handleBlur = () => {
       // 500ms grace period to avoid false positives from system notifications
       blurTimeout = setTimeout(() => {
+        if (document.activeElement?.tagName === 'IFRAME') {
+          return;
+        }
         if (!document.hidden) {
           setIsFocused(false);
           onViolation?.('تم اكتشاف مغادرة نافذة الاختبار');
@@ -125,7 +128,7 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-500 w-full h-full",
-        !isFocused && "blur-[40px] grayscale brightness-50 pointer-events-none scale-105"
+        !isFocused && showViolationUI && "blur-[40px] grayscale brightness-50 pointer-events-none scale-105"
       )}>
         {children}
       </div>

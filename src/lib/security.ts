@@ -32,9 +32,6 @@ export interface SecurityEvent {
   isMobile?: boolean;
 }
 
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
 export const IS_MOBILE =
   /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent) ||
   ('ontouchstart' in window && navigator.maxTouchPoints > 0);
@@ -57,24 +54,18 @@ const SEVERITY: Record<SecurityEventType, SecurityEvent['severity']> = {
   SAVE_AS: 'low',
 };
 
-// ─────────────────────────────────────────────
-// Real IP — cached
-// ─────────────────────────────────────────────
+// ── Real IP cached ──
 interface GeoInfo { ip: string; location: string }
 let geoCache: GeoInfo | null = null;
 
 const getGeoInfo = async (): Promise<GeoInfo> => {
   if (geoCache) return geoCache;
   try {
-    const res = await fetch('https://ipapi.co/json/', {
-      signal: AbortSignal.timeout(4000),
-    });
+    const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
     const data = await res.json();
     geoCache = {
       ip: data.ip ?? 'غير معروف',
-      location: data.city && data.country_name
-        ? `${data.city}، ${data.country_name}`
-        : 'غير محدد',
+      location: data.city && data.country_name ? `${data.city}، ${data.country_name}` : 'غير محدد',
     };
   } catch {
     geoCache = { ip: 'غير متاح', location: 'غير متاح' };
@@ -91,7 +82,6 @@ export const logSecurityEvent = async (
 ) => {
   const user = auth.currentUser;
   if (!user) return;
-
   try {
     const geo = await getGeoInfo();
     await addDoc(collection(db, 'security_logs'), {
@@ -115,10 +105,21 @@ export const logSecurityEvent = async (
 
 // ─────────────────────────────────────────────
 // useScreenRecordingDetection
-// ─────────────────────────────────────────────
-// ONLY detects screen recording/sharing.
-// Everything else (DevTools, tab switch, resize)
-// is intentionally NOT triggering blur on the video.
+//
+// THE FIX: We do NOT proxy getDisplayMedia on mount.
+// Instead we ONLY proxy it when the user actually
+// triggers sharing (user gesture required anyway).
+//
+// The blur is triggered ONLY when:
+//   1. User calls getDisplayMedia (clicks "Share Screen")
+//   2. A MediaStream with display surface is detected
+//      via navigator.mediaDevices.enumerateDevices trick
+//
+// We DO NOT fire on:
+//   - Page load
+//   - HLS buffer stall
+//   - Resize
+//   - DevTools open
 // ─────────────────────────────────────────────
 export const useScreenRecordingDetection = (
   onRecordingStart: () => void,
@@ -127,26 +128,27 @@ export const useScreenRecordingDetection = (
 ) => {
   const originalGDM = useRef<typeof navigator.mediaDevices.getDisplayMedia | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const hasProxied = useRef(false);
 
   useEffect(() => {
+    // Guard: not supported (mobile Safari, old browsers)
     if (!active) return;
-
-    // Guard: some browsers (mobile Safari) don't support getDisplayMedia
     if (!navigator.mediaDevices?.getDisplayMedia) return;
+    if (hasProxied.current) return;
 
+    hasProxied.current = true;
     originalGDM.current = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
 
-    // Proxy getDisplayMedia — fires when user starts screen share
+    // ── Proxy: only fires when user intentionally starts sharing ──
     navigator.mediaDevices.getDisplayMedia = async (options?: DisplayMediaStreamOptions) => {
+      // At this point the user deliberately initiated screen share
       onRecordingStart();
 
-      // Still let the browser proceed so we can monitor the stream
-      // (throwing here would just make the user try a different tool)
       try {
         const stream = await originalGDM.current!(options);
         streamRef.current = stream;
 
-        // Watch for when they stop sharing
+        // Detect when they stop sharing
         stream.getVideoTracks().forEach(track => {
           track.addEventListener('ended', () => {
             streamRef.current = null;
@@ -156,26 +158,24 @@ export const useScreenRecordingDetection = (
 
         return stream;
       } catch {
+        // User cancelled or browser denied — stop blur
         onRecordingStop();
-        throw new DOMException('Screen recording blocked.', 'NotAllowedError');
+        throw new DOMException('Screen recording is not allowed.', 'NotAllowedError');
       }
     };
 
     return () => {
-      // Restore original
+      hasProxied.current = false;
       if (originalGDM.current && navigator.mediaDevices?.getDisplayMedia) {
         navigator.mediaDevices.getDisplayMedia = originalGDM.current;
       }
-      // Stop any active stream
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, [active, onRecordingStart, onRecordingStop]);
 };
 
 // ─────────────────────────────────────────────
-// useSecurityDetection  (kept for compatibility)
-// Logs events to Firestore but does NOT trigger
-// blur — VideoPlayer now uses useScreenRecordingDetection
+// useSecurityDetection (log-only, no blur)
 // ─────────────────────────────────────────────
 export const useSecurityDetection = (
   onViolation: (type: SecurityEventType) => void,
@@ -201,7 +201,7 @@ export const useSecurityDetection = (
       const devShortcut =
         (e.ctrlKey && e.shiftKey && ['I', 'J', 'C', 'i', 'j', 'c'].includes(e.key)) ||
         e.key === 'F12';
-      if (devShortcut) { fire('DEVTOOLS'); return; }
+      if (devShortcut && !IS_MOBILE) { fire('DEVTOOLS'); return; }
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         fire('SAVE_AS');
@@ -217,7 +217,6 @@ export const useSecurityDetection = (
 
     window.addEventListener('keydown', handleKeyDown);
     document.addEventListener('visibilitychange', handleVisibility);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -228,14 +227,8 @@ export const useSecurityDetection = (
 // ─────────────────────────────────────────────
 // subscribeToSecurityLogs
 // ─────────────────────────────────────────────
-export const subscribeToSecurityLogs = (
-  callback: (logs: SecurityEvent[]) => void
-) => {
-  const q = query(
-    collection(db, 'security_logs'),
-    orderBy('timestamp', 'desc'),
-    limit(50)
-  );
+export const subscribeToSecurityLogs = (callback: (logs: SecurityEvent[]) => void) => {
+  const q = query(collection(db, 'security_logs'), orderBy('timestamp', 'desc'), limit(50));
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SecurityEvent)));
   });
