@@ -20,55 +20,37 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
   useEffect(() => {
     if (!active) return;
 
-    let blurTimeout: any;
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // User switched to another tab or minimized the browser
+    let wasFocused = true;
+    const interval = setInterval(() => {
+      const currentFocus = document.hasFocus() && !document.hidden;
+      
+      if (wasFocused && !currentFocus) {
+        wasFocused = false;
         setIsFocused(false);
-        onViolation?.('تم اكتشاف الانتقال إلى تاب آخر أثناء الاختبار');
-      } else {
-        clearTimeout(blurTimeout);
+        if (showViolationUI) {
+          onViolation?.('تم اكتشاف فتح تطبيق خارجي أو مغادرة الصفحة');
+        }
+      } else if (!wasFocused && currentFocus) {
+        wasFocused = true;
         setIsFocused(true);
       }
-    };
+    }, 500);
 
-    const handleBlur = () => {
-      // 500ms grace period to avoid false positives from system notifications
-      blurTimeout = setTimeout(() => {
-        if (document.activeElement?.tagName === 'IFRAME') {
-          return;
-        }
-        if (!document.hidden) {
-          setIsFocused(false);
-          onViolation?.('تم اكتشاف مغادرة نافذة الاختبار');
-        }
-      }, 500);
-    };
+    return () => clearInterval(interval);
+  }, [active, onViolation, showViolationUI]);
 
-    const handleFocus = () => {
-      clearTimeout(blurTimeout);
-      setIsFocused(true);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearTimeout(blurTimeout);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [active, onViolation]);
-
-  // 2. Block Shortcuts & Context Menu
+  // 2. Block Shortcuts, Context Menu & Clipboard
   useEffect(() => {
     if (!active) return;
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      return false;
+    };
+
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      e.clipboardData?.setData('text/plain', 'تم منع النسخ لأسباب أمنية.');
       return false;
     };
 
@@ -81,7 +63,7 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
       }
       // Block DevTools silently, no violation
       if (
-        (e.ctrlKey && (e.key === 's' || e.key === 'u')) ||
+        (e.ctrlKey && (e.key === 's' || e.key === 'u' || e.key === 'c' || e.key === 'x')) ||
         e.key === 'F12' ||
         (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C'))
       ) {
@@ -91,10 +73,14 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
     };
 
     document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('cut', handleCopy);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('cut', handleCopy);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [active, onViolation]);
@@ -128,7 +114,8 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-500 w-full h-full",
-        !isFocused && showViolationUI && "blur-[40px] grayscale brightness-50 pointer-events-none scale-105"
+        !isFocused && showViolationUI && "blur-[40px] grayscale brightness-50 pointer-events-none scale-105",
+        !isFocused && !showViolationUI && "blur-[60px] brightness-0 pointer-events-none bg-black"
       )}>
         {children}
       </div>

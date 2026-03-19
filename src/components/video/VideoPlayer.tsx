@@ -22,7 +22,7 @@ interface VideoPlayerProps {
 // ─────────────────────────────────────────────
 // Watermark canvas — transparent overlay
 // ─────────────────────────────────────────────
-const drawWatermark = (canvas: HTMLCanvasElement, text: string) => {
+const drawWatermark = (canvas: HTMLCanvasElement, text: string, time: number) => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const dpr = window.devicePixelRatio || 1;
@@ -34,17 +34,23 @@ const drawWatermark = (canvas: HTMLCanvasElement, text: string) => {
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, w, h);
   ctx.save();
-  ctx.globalAlpha = 0.08;
+  ctx.globalAlpha = 0.12; // Slightly more visible
   ctx.fillStyle   = 'white';
   ctx.shadowColor = 'rgba(0,0,0,0.9)';
   ctx.shadowBlur  = 4;
   ctx.font        = `bold ${Math.max(10, w / 55)}px monospace`;
   ctx.textAlign   = 'center';
   const spacing   = 220;
-  for (let y = -h; y < h * 2; y += spacing) {
-    for (let x = -w; x < w * 2; x += spacing) {
+  
+  // Floating animation
+  const speed = 0.05;
+  const offsetX = (time * speed) % spacing;
+  const offsetY = (time * speed * 0.5) % spacing;
+
+  for (let y = -h - spacing; y < h * 2; y += spacing) {
+    for (let x = -w - spacing; x < w * 2; x += spacing) {
       ctx.save();
-      ctx.translate(x, y);
+      ctx.translate(x + offsetX, y + offsetY);
       ctx.rotate(-Math.PI / 6);
       ctx.fillText(text, 0, 0);
       ctx.restore();
@@ -120,9 +126,9 @@ export const VideoPlayer = ({
   }, [isRecording, src]);
 
   // ── Watermark ──
-  const renderWatermark = useCallback(() => {
+  const renderWatermark = useCallback((time: number) => {
     const canvas = canvasRef.current;
-    if (canvas) drawWatermark(canvas, watermarkText);
+    if (canvas) drawWatermark(canvas, watermarkText, time);
     animRef.current = requestAnimationFrame(renderWatermark);
   }, [watermarkText]);
 
@@ -175,7 +181,7 @@ export const VideoPlayer = ({
           transition: 'filter 0.3s ease',
         }}
         allowFullScreen
-        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write; web-share"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; fullscreen; clipboard-write; web-share"
         referrerPolicy="strict-origin-when-cross-origin"
         title={`lesson-${src}`}
         scrolling="no"
