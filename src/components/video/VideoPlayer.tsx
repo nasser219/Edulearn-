@@ -26,22 +26,22 @@ const drawWatermark = (canvas: HTMLCanvasElement, text: string, time: number) =>
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const dpr = window.devicePixelRatio || 1;
-  const w   = canvas.offsetWidth;
-  const h   = canvas.offsetHeight;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
   if (!w || !h) return;
-  canvas.width  = w * dpr;
+  canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, w, h);
   ctx.save();
   ctx.globalAlpha = 0.12; // Slightly more visible
-  ctx.fillStyle   = 'white';
+  ctx.fillStyle = 'white';
   ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur  = 4;
-  ctx.font        = `bold ${Math.max(10, w / 55)}px monospace`;
-  ctx.textAlign   = 'center';
-  const spacing   = 220;
-  
+  ctx.shadowBlur = 4;
+  ctx.font = `bold ${Math.max(10, w / 55)}px monospace`;
+  ctx.textAlign = 'center';
+  const spacing = 220;
+
   // Floating animation
   const speed = 0.05;
   const offsetX = (time * speed) % spacing;
@@ -110,13 +110,13 @@ export const VideoPlayer = ({
   studentName,
   studentPhone,
 }: VideoPlayerProps) => {
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const animRef      = useRef<number>(0);
-  const iframeRef    = useRef<HTMLIFrameElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   // Track current iframe URL — switch to muted version when recording
-  const [iframeUrl, setIframeUrl]     = useState(BUNNY_URL_NORMAL(src));
+  const [iframeUrl, setIframeUrl] = useState(BUNNY_URL_NORMAL(src));
 
   const watermarkText = `${studentName} · ${studentPhone}`;
 
@@ -177,7 +177,7 @@ export const VideoPlayer = ({
         style={{
           top: 0,
           left: 0,
-          filter:     isRecording ? 'blur(50px) brightness(0.05)' : 'none',
+          filter: isRecording ? 'blur(50px) brightness(0.05)' : 'none',
           transition: 'filter 0.3s ease',
         }}
         allowFullScreen
