@@ -329,6 +329,13 @@ export const QuizCreator = ({ onBack, editId }: { onBack: () => void; editId?: s
     fetchSettings();
   }, []);
 
+  // Pre-fill subject if creating new quiz
+  React.useEffect(() => {
+    if (!editId && profile?.subject) {
+      setSubject(profile.subject);
+    }
+  }, [editId, profile?.subject]);
+
   React.useEffect(() => {
     const fetchQuiz = async () => {
       if (!editId) return;
@@ -472,7 +479,17 @@ export const QuizCreator = ({ onBack, editId }: { onBack: () => void; editId?: s
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 mr-2">المادة العلمية</label>
-                  <Input placeholder="مثال: الفيزياء، الكيمياء..." className="rounded-2xl bg-slate-50 border-none font-bold placeholder:text-slate-300" value={subject} onChange={e => setSubject(e.target.value)} />
+                  <Input 
+                    placeholder="مثال: الفيزياء، الكيمياء..." 
+                    readOnly={!!profile?.subject}
+                    className={cn(
+                      "rounded-2xl border-none font-bold transition-all",
+                      !!profile?.subject ? "bg-slate-100 text-slate-500 cursor-not-allowed" : "bg-slate-50 placeholder:text-slate-300 focus:bg-white"
+                    )} 
+                    value={subject} 
+                    onChange={e => setSubject(e.target.value)} 
+                  />
+                  {profile?.subject && <p className="text-[9px] text-slate-400 font-bold mr-2 mt-1">تم التحديد تلقائياً بناءً على تخصصك 🔒</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 mr-2">مدة الاختبار (بالدقائق)</label>

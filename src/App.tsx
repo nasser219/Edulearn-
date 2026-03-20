@@ -24,6 +24,7 @@ import { Quizzes } from './components/dashboard/Quizzes';
 import { QuizCreator } from './components/quizzes/QuizCreator';
 import { PerformanceAI } from './components/dashboard/PerformanceAI';
 import { TeacherAnnouncements } from './components/dashboard/TeacherAnnouncements';
+import { TeacherAnalytics } from './components/dashboard/TeacherAnalytics';
 import { Security } from './components/dashboard/Security';
 import { TeachersList } from './components/courses/TeachersList';
 import { TeacherProfileView } from './components/courses/TeacherProfileView';
@@ -35,7 +36,7 @@ import { NotificationCenter } from './components/dashboard/NotificationCenter';
 import { NotificationList } from './components/notifications/NotificationList';
 import { UserRole } from './types';
 
-type View = 'DASHBOARD' | 'COURSE_VIEWER' | 'QUIZ' | 'COURSES' | 'MANAGE_COURSES' | 'HOMEWORK' | 'QUIZZES' | 'CREATE_QUIZ' | 'STUDENTS' | 'REPORTS' | 'PAYMENTS' | 'SECURITY' | 'SETTINGS' | 'PERFORMANCE_AI' | 'ANNOUNCEMENTS' | 'TEACHERS' | 'MESSAGES' | 'TEACHER_PROFILE' | 'STUDENT_RESULTS' | 'NOTIFICATION_CENTER';
+type View = 'DASHBOARD' | 'COURSE_VIEWER' | 'QUIZ' | 'COURSES' | 'MANAGE_COURSES' | 'HOMEWORK' | 'QUIZZES' | 'CREATE_QUIZ' | 'STUDENTS' | 'REPORTS' | 'PAYMENTS' | 'SECURITY' | 'SETTINGS' | 'PERFORMANCE_AI' | 'ANNOUNCEMENTS' | 'TEACHERS' | 'MESSAGES' | 'TEACHER_PROFILE' | 'STUDENT_RESULTS' | 'NOTIFICATION_CENTER' | 'TEACHER_ANALYTICS';
 type LandingView = 'HOME' | 'AUTH' | 'TEACHERS' | 'ABOUT';
 
 const LandingHeader = ({
@@ -891,6 +892,7 @@ export default function App() {
             {currentView === 'PAYMENTS' && <Payments />}
             {currentView === 'SECURITY' && <Security />}
             {currentView === 'PERFORMANCE_AI' && <PerformanceAI onBack={() => setCurrentView('DASHBOARD')} />}
+            {currentView === 'TEACHER_ANALYTICS' && <TeacherAnalytics onBack={() => setCurrentView('DASHBOARD')} />}
             {isAdmin() && currentView === 'ANNOUNCEMENTS' && <div className="p-8 text-center bg-white rounded-3xl shadow-premium border-2 border-dashed border-slate-100">
               <Megaphone className="h-12 w-12 text-slate-200 mx-auto mb-4" />
               <p className="text-slate-400 font-bold">يرجى استخدام لوحة تحكم السوبر أدمن لإدارة الإعلانات.</p>

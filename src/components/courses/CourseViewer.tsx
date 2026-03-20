@@ -1,15 +1,287 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Play, FileText, GraduationCap, CheckCircle2, Lock, Layers, Image as ImageIcon, Download, FileArchive, File as FileIcon, ExternalLink, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { 
+  ChevronLeft, ChevronRight, Play, FileText, GraduationCap, CheckCircle2, Lock, Layers, 
+  Image as ImageIcon, Download, FileArchive, File as FileIcon, ExternalLink, AlertCircle, 
+  Eye, Upload, Send, Star, Clock, Trophy, Calendar
+} from 'lucide-react';
 import { VideoPlayer } from '../video/VideoPlayer';
 import { Button } from '../ui/Button';
 import { QuizEngine } from '../quizzes/QuizEngine';
 import { PaymentModal } from '../payments/PaymentModal';
 import { cn } from '../../lib/utils';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { 
+  doc, getDoc, collection, query, where, onSnapshot, addDoc, 
+  updateDoc, arrayUnion, limit 
+} from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useEducatorsAuth } from '../auth/AuthProvider';
 import { SecurityOverlay } from '../security/SecurityOverlay';
 import { LessonComments } from './LessonComments';
+import { uploadFileToSupabase } from '../../lib/supabase';
+
+const VIDEO_COMPLETION_THRESHOLD = 90; // % to consider video watched (Lowered for better reliability)
+
+// ─── Homework Lesson View ───────────────────────────────────────────────────
+const HomeworkLessonView = ({ 
+  homeworkId, 
+  profile, 
+  onComplete 
+}: { 
+  homeworkId: string; 
+  profile: any; 
+  onComplete: () => void;
+}) => {
+  const [homework, setHomework] = useState<any>(null);
+  const [submission, setSubmission] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (!homeworkId || !profile?.uid) return;
+
+    // Fetch Homework Details
+    const fetchHW = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'homework', homeworkId));
+        if (docSnap.exists()) {
+          setHomework({ id: docSnap.id, ...docSnap.data() });
+        }
+      } catch (err) {
+        console.error('Error fetching homework:', err);
+      }
+    };
+
+    // Listen for Student Submission
+    const q = query(
+      collection(db, 'homework_submissions'),
+      where('homeworkId', '==', homeworkId),
+      where('studentId', '==', profile.uid),
+      limit(1)
+    );
+    
+    const unsubscribeSub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        setSubmission({ id: snap.docs[0].id, ...snap.docs[0].data() });
+      } else {
+        setSubmission(null);
+      }
+      setLoading(false);
+    });
+
+    fetchHW();
+    return () => unsubscribeSub();
+  }, [homeworkId, profile?.uid]);
+
+  const handleUpload = async () => {
+    if (!file || !profile?.uid || !homework) return;
+    setIsUploading(true);
+    try {
+      const fileUrl = await uploadFileToSupabase(file, 'student-submissions');
+      
+      await addDoc(collection(db, 'homework_submissions'), {
+        homeworkId: homework.id,
+        studentId: profile.uid,
+        studentName: profile.fullName,
+        fileUrl,
+        fileName: file.name,
+        submittedAt: new Date().toISOString(),
+      });
+
+      // Increment submissions count in main homework doc
+      await updateDoc(doc(db, 'homework', homework.id), {
+        submissions: (homework.submissions || 0) + 1
+      });
+
+      setFile(null);
+      onComplete(); // Mark lesson as completed
+    } catch (err) {
+      console.error('Error submitting homework:', err);
+      alert('حدث خطأ أثناء رفع الحل. حاول مرة أخرى.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center p-20 space-y-4">
+      <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
+      <p className="font-black text-slate-400">جاري تحميل بيانات الواجب... ⏳</p>
+    </div>
+  );
+
+  if (!homework) {
+    // FALLBACK: If homeworkId is actually a direct file URL (legacy/migrated content)
+    const isFileUrl = homeworkId?.startsWith('http') || homeworkId?.includes('cloudinary.com') || homeworkId?.includes('supabase');
+    
+    if (isFileUrl) {
+      return (
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-premium p-12 text-center space-y-8" dir="rtl">
+          <div className="h-24 w-24 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto border-4 border-brand-primary/5">
+            <FileText className="h-12 w-12 text-brand-primary" />
+          </div>
+          <div className="space-y-4">
+            <h3 className="text-3xl font-black text-slate-900">ملف الواجب المنزلي 📝</h3>
+            <p className="text-slate-500 font-bold text-lg max-w-md mx-auto leading-relaxed">
+              يرجى تحميل ملف الواجب المرفق أدناه، حله، ثم تسليمه إلى المعلم مباشرة أو عبر المنصة عند تفعيل نظام التسليم الجديد لهذا الدرس.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button 
+              variant="primary" 
+              size="lg" 
+              className="rounded-2xl font-black h-16 px-12 text-lg shadow-xl shadow-brand-primary/30"
+              onClick={() => window.open(homeworkId, '_blank')}
+            >
+              تحميل ملف الواجب 📥
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="rounded-2xl font-black h-16 px-12 text-lg"
+              onClick={onComplete}
+            >
+              تعليم كمكتمل ✅
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-20 text-center space-y-4">
+        <AlertCircle className="h-12 w-12 text-amber-500 mx-auto" />
+        <p className="font-black text-slate-500">عذراً، لم يتم العثور على بيانات هذا الواجب.</p>
+        <p className="text-[10px] text-slate-400">المعرف: {homeworkId}</p>
+      </div>
+    );
+  }
+
+  const isGraded = submission?.grade !== undefined && submission?.grade !== null;
+
+  return (
+    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-premium overflow-hidden animate-in fade-in duration-500 text-right" dir="rtl">
+      {/* HW Hero Header */}
+      <div className="p-8 md:p-12 bg-slate-50 border-b border-slate-100 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-64 h-64 bg-brand-primary/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-3">
+             <div className="flex items-center gap-3">
+                <span className="px-3 py-1 bg-brand-primary/10 text-brand-primary text-[10px] font-black rounded-lg uppercase tracking-tight">واجب منزلي</span>
+                <span className="text-slate-400 font-bold text-xs">{homework.subject}</span>
+             </div>
+             <h3 className="text-3xl font-black text-slate-900">{homework.title}</h3>
+             <div className="flex items-center gap-4 text-slate-500 text-sm font-bold">
+                <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> التسليم قبل: {new Date(homework.dueDate).toLocaleDateString('ar-EG')}</div>
+                <div className="flex items-center gap-1.5 text-brand-primary"><Star className="h-4 w-4" /> الدرجة القصوى: {homework.maxGrade}</div>
+             </div>
+          </div>
+          
+          {isGraded ? (
+            <div className="bg-green-500 text-white p-6 rounded-[2rem] shadow-xl shadow-green-200 flex flex-col items-center min-w-[140px] border-4 border-white">
+              <Trophy className="h-8 w-8 mb-2" />
+              <div className="text-3xl font-black leading-none">{submission.grade}</div>
+              <div className="text-[10px] font-bold opacity-80 mt-1">من {homework.maxGrade}</div>
+            </div>
+          ) : submission ? (
+            <div className="bg-amber-500 text-white px-8 py-5 rounded-[2rem] shadow-xl shadow-amber-200 flex items-center gap-3 border-4 border-white">
+              <Clock className="h-6 w-6 animate-pulse" />
+              <span className="font-black text-lg">قيد التصحيح...</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="p-8 md:p-12 space-y-10">
+        {/* Description & Instruction */}
+        <div className="space-y-4">
+          <h4 className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-brand-primary" /> تعليمات الواجب
+          </h4>
+          <p className="text-slate-600 font-medium leading-relaxed bg-slate-50/50 p-6 rounded-2xl border border-slate-100 italic">
+            {homework.description || "يرجى حل الواجب المطلوب ورفعه كملف PDF أو صورة واضحة."}
+          </p>
+          
+          {homework.attachmentUrl && (
+            <Button 
+              variant="outline" 
+              className="rounded-2xl h-14 font-black px-8 bg-brand-primary/5 border-brand-primary/20 text-brand-primary hover:bg-brand-primary/10 transition-all flex items-center gap-3"
+              onClick={() => window.open(homework.attachmentUrl, '_blank')}
+            >
+              <Download className="h-5 w-5" /> تحميل ملف الواجب المرفق
+            </Button>
+          )}
+        </div>
+
+        {/* Submission Section */}
+        <div className="pt-10 border-t border-slate-100 space-y-6">
+          <h4 className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <Upload className="h-5 w-5 text-blue-600" /> 
+            {submission ? 'حلولك التي رفعتها' : 'رفع حل الواجب'}
+          </h4>
+
+          {submission ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-4">
+                   <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                      <FileText className="h-6 w-6" />
+                   </div>
+                   <div className="text-right">
+                      <p className="font-black text-slate-900">{submission.fileName}</p>
+                      <p className="text-[10px] text-slate-400 font-bold">{new Date(submission.submittedAt).toLocaleString('ar-EG')}</p>
+                   </div>
+                </div>
+                <Button variant="ghost" className="rounded-xl font-bold" onClick={() => window.open(submission.fileUrl, '_blank')}>
+                   <Eye className="h-4 w-4 ml-2" /> عرض الملف
+                </Button>
+              </div>
+
+              {isGraded && (
+                <div className="p-6 bg-green-50 rounded-3xl border border-green-100 animate-in slide-in-from-top-4">
+                  <h5 className="font-black text-green-800 flex items-center gap-2 mb-2">
+                    <Star className="h-4 w-4" /> ملاحظات المعلم:
+                  </h5>
+                  <p className="text-green-700 font-bold text-sm leading-relaxed">
+                    {submission.feedback || "أحسنت! إجابة ممتازة."}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+               <div className="border-2 border-dashed border-slate-200 rounded-[2rem] p-12 text-center hover:border-brand-primary transition-all cursor-pointer group bg-slate-50/30 hover:bg-slate-50"
+                 onClick={() => (document.getElementById('hw-sub') as HTMLInputElement)?.click()}>
+                  <input type="file" id="hw-sub" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.gif,.zip,.rar" 
+                    onChange={e => setFile(e.target.files?.[0] || null)} />
+                  <div className="h-20 w-20 bg-white shadow-xl rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500">
+                    <Upload className="h-10 w-10 text-slate-300" />
+                  </div>
+                  <h5 className="text-xl font-black text-slate-900 mb-2">{file ? file.name : 'اسحب ملف الحل هنا'}</h5>
+                  <p className="text-slate-400 font-bold mb-8">PDF أو صور (بحد أقصى 25 ميجابايت)</p>
+                  
+                  <div className="flex justify-center gap-3">
+                    <Button variant="primary" size="lg" className="rounded-2xl font-black h-16 px-12 shadow-2xl shadow-brand-primary/30"
+                      onClick={e => { e.stopPropagation(); handleUpload(); }} disabled={!file || isUploading} isLoading={isUploading}>
+                      {isUploading ? 'جاري الرفع...' : 'تأكيد رفع الحل 🚀'}
+                    </Button>
+                    {file && (
+                      <Button variant="ghost" className="rounded-2xl h-16 w-16 p-0 text-red-500 hover:bg-red-50" onClick={e => { e.stopPropagation(); setFile(null); }}>
+                        <X className="h-6 w-6" />
+                      </Button>
+                    )}
+                  </div>
+               </div>
+               <p className="text-xs text-amber-600 font-bold bg-amber-50 p-4 rounded-xl border border-amber-100 inline-block">
+                 ⚠️ تنبيه: بمجرد رفع الحل، يمكنك تغييره فقط عبر التواصل مع المعلم. يرجى التأكد من الملف قبل الرفع.
+               </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: () => void }) => {
   const { profile, isAdmin, isTeacher } = useEducatorsAuth();
@@ -20,6 +292,8 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
   const [isRequesting, setIsRequesting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string>('');
+  const [videoProgress, setVideoProgress] = useState<Record<string, number>>({}); // lessonId -> % watched
+  const autoAdvanceRef = useRef(false);
 
   const allLessons = course?.sections?.flatMap((s: any) => s.lessons) || [];
   const currentLesson = allLessons[activeLessonIdx];
@@ -230,18 +504,81 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
     return url;
   };
 
+  // ── Save video progress to Firestore ──
+  const handleVideoProgress = useCallback(async (percent: number) => {
+    if (!profile?.uid || !enrollment || !currentLesson) return;
+    const lessonId = currentLesson.id;
+    
+    setVideoProgress(prev => ({ ...prev, [lessonId]: Math.max(prev[lessonId] || 0, percent) }));
+    
+    // Persist to Firestore every 10% increment
+    if (percent % 10 === 0 || percent >= VIDEO_COMPLETION_THRESHOLD) {
+      try {
+        const progressMap = enrollment.videoProgress || {};
+        const currentSaved = progressMap[lessonId] || 0;
+        if (percent > currentSaved) {
+          await updateDoc(doc(db, 'enrollments', enrollment.id), {
+            [`videoProgress.${lessonId}`]: percent
+          });
+        }
+      } catch (e) {
+        console.error('Error saving video progress:', e);
+      }
+    }
+  }, [profile?.uid, enrollment, currentLesson]);
+
+  // ── Auto-advance to exam when video completes ──
+  const handleVideoEnded = useCallback(() => {
+    if (!currentLesson) return;
+    markLessonCompleted(currentLesson.id);
+    
+    // Auto-advance to next exam if it exists in same section
+    const section = course?.sections?.find((s: any) => 
+      s.lessons.some((l: any) => l.id === currentLesson.id)
+    );
+    if (section) {
+      const currentIdx = section.lessons.findIndex((l: any) => l.id === currentLesson.id);
+      const nextLesson = section.lessons[currentIdx + 1];
+      if (nextLesson && (nextLesson.type === 'QUIZ' || nextLesson.type === 'HOMEWORK')) {
+        // Auto-advance to the exam after a brief delay
+        autoAdvanceRef.current = true;
+        setTimeout(() => {
+          const globalIdx = allLessons.findIndex((l: any) => l.id === nextLesson.id);
+          if (globalIdx >= 0) setActiveLessonIdx(globalIdx);
+          autoAdvanceRef.current = false;
+        }, 1500);
+      }
+    }
+  }, [currentLesson, course, allLessons]);
+
   const getIsLessonLocked = (lesson: any) => {
     if (isAdmin() || isTeacher()) return false;
     if (lesson.locked) return true;
+    
+    // Root fix: If already in completedLessons in Firestore, it must be unlocked
+    if (enrollment?.completedLessons?.includes(lesson.id)) return false;
 
-    // Strict sequential lock: If it's a Quiz/Homework, ensure all VIDEOS in the same section are completed
-    const section = course.sections.find((s: any) => s.lessons.some((l: any) => l.id === lesson.id));
+    // Sequential lock: If Quiz/Homework, ensure all VIDEOS in same section are fully watched (90%+)
+    const section = course.sections?.find((s: any) => s.lessons.some((l: any) => l.id === lesson.id));
     if (section && (lesson.type === 'QUIZ' || lesson.type === 'HOMEWORK')) {
-      const videosBefore = section.lessons.filter((l: any) => l.type === 'VIDEO');
-      const hasUnfinishedVideo = videosBefore.some((v: any) => !enrollment?.completedLessons?.includes(v.id));
+      const videosInSameSection = section.lessons.filter((l: any) => l.type === 'VIDEO');
+      const hasUnfinishedVideo = videosInSameSection.some((v: any) => {
+        const isComp = enrollment?.completedLessons?.includes(v.id);
+        const savedProg = enrollment?.videoProgress?.[v.id] || 0;
+        const localProg = videoProgress[v.id] || 0;
+        const maxProg = Math.max(savedProg, localProg);
+        return !isComp && maxProg < VIDEO_COMPLETION_THRESHOLD;
+      });
       if (hasUnfinishedVideo) return true;
     }
     return false;
+  };
+
+  // Helper: get video watch % for sidebar display
+  const getVideoWatchPercent = (lessonId: string) => {
+    const saved = enrollment?.videoProgress?.[lessonId] || 0;
+    const local = videoProgress[lessonId] || 0;
+    return Math.max(saved, local);
   };
 
   if (loading) return <div className="p-20 text-center font-black text-slate-400">جاري تحميل محتوى الكورس... ⏳</div>;
@@ -305,6 +642,14 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                   />
                 </div>
               </SecurityOverlay>
+            ) : currentLesson.type === 'HOMEWORK' && currentLesson.contentUrl ? (
+              <SecurityOverlay showViolationUI={false}>
+                <HomeworkLessonView 
+                  homeworkId={currentLesson.contentUrl} 
+                  profile={profile}
+                  onComplete={() => markLessonCompleted(currentLesson.id)}
+                />
+              </SecurityOverlay>
             ) : (
               <SecurityOverlay showViolationUI={false}>
                 <div className="aspect-video bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border-4 sm:border-8 border-white shadow-premium overflow-hidden relative group font-sans">
@@ -328,14 +673,15 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                           فتح المجموعة في نافذة جديدة <ExternalLink className="h-5 w-5" />
                        </a>
                     </div>
-                  ) : isVideo(currentLesson.contentUrl) || currentLesson.type === 'VIDEO' ? (
+                    ) : isVideo(currentLesson.contentUrl) || currentLesson.type === 'VIDEO' ? (
                     <VideoPlayer 
                       src={resolvedUrl || getFileUrl(currentLesson.contentUrl)} 
                       studentName={profile?.fullName || "طالب"}
                       studentPhone={profile?.phone || profile?.fatherPhone || "---"}
-                      ipAddress="Active Session"
                       courseThumbnail={course?.thumbnailUrl}
-                      onEnded={() => markLessonCompleted(currentLesson.id)}
+                      onEnded={handleVideoEnded}
+                      onProgress={handleVideoProgress}
+                      initialProgress={getVideoWatchPercent(currentLesson.id)}
                     />
                   ) : isImage(currentLesson.contentUrl) || currentLesson.type === 'IMAGE' ? (
                     <img src={resolvedUrl || getFileUrl(currentLesson.contentUrl)} className="w-full h-full object-contain" alt={currentLesson.title} />
@@ -439,8 +785,19 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
 
       {/* Right Side: Content Sidebar with Bubble/Glass Theme */}
       <div className="w-full lg:w-85 xl:w-[22rem] glass-mauve rounded-[1.5rem] sm:rounded-[2.5rem] flex flex-col overflow-hidden border border-white/10 shadow-2xl relative">
-        <div className="p-6 border-b border-white/10 bg-white/5 text-right">
-          <h3 className="text-white font-black text-base mb-3">محتوى الكورس</h3>
+        <div className="p-6 border-b border-white/10 bg-white/5 text-right relative group">
+          <div className="flex items-center justify-between mb-3">
+             <button 
+              onClick={() => window.location.reload()} 
+              className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+              title="تحديث البيانات"
+             >
+                <div className="animate-spin-slow">
+                  <Layers className="h-3.5 w-3.5" />
+                </div>
+             </button>
+             <h3 className="text-white font-black text-base">محتوى الكورس</h3>
+          </div>
           <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
             <div className="h-full bg-brand-primary transition-all duration-1000 shadow-[0_0_15px_rgba(139,92,246,0.6)]" style={{ width: `${enrollment?.progress || 0}%` }} />
           </div>
@@ -470,9 +827,16 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                     >
                       <div className="shrink-0">
                         {enrollment?.completedLessons?.includes(lesson.id) ? (
-                          <CheckCircle2 className="h-5 w-5 text-brand-primary drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
+                          <CheckCircle2 className="h-5 w-5 text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                         ) : isLocked ? (
                           <Lock className="h-5 w-5 text-white/30" />
+                        ) : (lesson.type === 'VIDEO' && getVideoWatchPercent(lesson.id) > 0 && getVideoWatchPercent(lesson.id) < VIDEO_COMPLETION_THRESHOLD) ? (
+                          <div className="relative h-5 w-5">
+                            <Eye className="h-5 w-5 text-brand-primary/60" />
+                            <div className="absolute -bottom-0.5 -right-0.5 bg-brand-primary text-white text-[7px] font-black rounded-full h-3 w-3 flex items-center justify-center">
+                              {getVideoWatchPercent(lesson.id) > 0 ? Math.min(getVideoWatchPercent(lesson.id), 99) : ''}
+                            </div>
+                          </div>
                         ) : (
                           <Play className={cn("h-5 w-5", isActive ? "text-white animate-pulse" : "text-white/40 group-hover:text-white")} />
                         )}
@@ -481,7 +845,17 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                         <p className={cn("text-[0.85rem] font-black tracking-tight leading-tight", isActive ? "text-white" : "text-current")}>
                           {lesson.title}
                         </p>
-                        {lesson.duration && <p className="text-[10px] text-white/40 font-bold mt-1 leading-none">{lesson.duration}</p>}
+                        <div className="flex items-center gap-2 mt-1">
+                          {lesson.duration && <p className="text-[10px] text-white/40 font-bold leading-none">{lesson.duration}</p>}
+                          {lesson.type === 'VIDEO' && getVideoWatchPercent(lesson.id) > 0 && !enrollment?.completedLessons?.includes(lesson.id) && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-brand-primary rounded-full transition-all" style={{ width: `${getVideoWatchPercent(lesson.id)}%` }} />
+                              </div>
+                              <span className="text-[8px] text-white/30 font-bold">{getVideoWatchPercent(lesson.id)}%</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </button>
                   );

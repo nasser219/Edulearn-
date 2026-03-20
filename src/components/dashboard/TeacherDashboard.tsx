@@ -10,7 +10,8 @@ import {
   X,
   Video as VideoIcon,
   Sparkles,
-  BrainCircuit
+  BrainCircuit,
+  Trash2
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { Button } from '../ui/Button';
@@ -127,6 +128,21 @@ export const TeacherDashboard = ({ onNavigate, onEditCourse }: { onNavigate?: (v
     return () => unsubscribeCourses();
   }, [profile]);
 
+  const handleDeleteCourse = async (courseId: string, courseTitle: string) => {
+    if (!profile?.uid) return;
+    const confirmed = window.confirm(`هل أنت متأكد من حذف كورس "${courseTitle}"؟ لا يمكن التراجع عن هذا الإجراء.`);
+    if (!confirmed) return;
+
+    try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'courses', courseId));
+      // real-time snapshot automatically updates the UI
+    } catch (e) {
+      console.error("Error deleting course:", e);
+      alert("حدث خطأ أثناء حذف الكورس. يرجى المحاولة مرة أخرى.");
+    }
+  };
+
   return (
     <div className="space-y-12 pb-12">
       <div className="flex items-center justify-between px-2">
@@ -143,6 +159,16 @@ export const TeacherDashboard = ({ onNavigate, onEditCourse }: { onNavigate?: (v
             <Plus className="h-5 w-5" />
           </div>
           إنشاء دورة جديدة
+        </Button>
+        <Button 
+          variant="outline" 
+          className="rounded-2xl px-8 py-4 h-auto font-black border-2 border-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white transition-all shadow-lg flex items-center gap-2 group"
+          onClick={() => onNavigate?.('TEACHER_ANALYTICS')}
+        >
+          <div className="bg-brand-primary/10 p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          إحصائيات الطلاب
         </Button>
         <Button 
           variant="outline" 
@@ -242,6 +268,14 @@ export const TeacherDashboard = ({ onNavigate, onEditCourse }: { onNavigate?: (v
                               onClick={() => onEditCourse?.(course.id)}
                             >
                               <Pencil className="h-5 w-5" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-10 w-10 p-0 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500"
+                              onClick={() => handleDeleteCourse(course.id, course.title)}
+                            >
+                              <Trash2 className="h-5 w-5" />
                             </Button>
                           </div>
                         </td>

@@ -3,7 +3,7 @@ import { AlertCircle, XCircle, CheckCircle2, Award, Clock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardFooter } from '../ui/Card';
 import { cn } from '../../lib/utils';
-import { doc, getDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useEducatorsAuth } from '../auth/AuthProvider';
 import { SecurityOverlay } from '../security/SecurityOverlay';
@@ -23,6 +23,8 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
   const [score, setScore] = useState(0);
   const [cheatInfo, setCheatInfo] = useState<{ isCheated: boolean, note: string } | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
+  const [previousResult, setPreviousResult] = useState<any>(null);
+  const [isRetaking, setIsRetaking] = useState(false);
 
   const isFinishedRef = useRef(false);
   // Keep live refs so handleFinish always has latest values
@@ -45,9 +47,18 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
         ));
 
         if (!resultsSnap.empty) {
-          alert('لقد أتممت هذا الاختبار بالفعل. لا يمكنك إعادته مرة أخرى.');
-          onBack();
-          return;
+          const resData = resultsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => 
+            new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+          );
+          
+          setPreviousResult(resData[0]); // Get the most recent result
+          
+          // Only stop if they aren't authorized to retake
+          const hasRetakePermission = resData.some((r: any) => r.allowRetake === true);
+          if (!hasRetakePermission && !isRetaking) {
+            setLoading(false);
+            return;
+          }
         }
 
         // 2. Fetch Quiz Data
@@ -154,7 +165,20 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
         isCheated,
         cheatNote: note,
         status: isCheated ? 'FLAGGED' : (currentQuiz?.questions.some((q: any) => q.type === 'ESSAY') ? 'PENDING_GRADES' : 'SUBMITTED'),
+        allowRetake: false, // Ensure new results start fresh
       });
+
+      // Clear any previous retake permissions to ensure single-use
+      const oldPermissions = await getDocs(query(
+        collection(db, 'quiz_results'),
+        where('studentId', '==', profile?.uid),
+        where('courseId', '==', quizId),
+        where('allowRetake', '==', true)
+      ));
+      
+      const updatePromises = oldPermissions.docs.map(d => updateDoc(d.ref, { allowRetake: false }));
+      await Promise.all(updatePromises);
+
       setAnswers({});
       onComplete?.(percentage);
     } catch (error) {
@@ -167,6 +191,52 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // ─── Previous Result Guard View ───────────────────────────────────────────
+  if (previousResult && !isRetaking && !isFinished) {
+    return (
+      <div className="max-w-2xl mx-auto py-20 text-center space-y-10 animate-in fade-in duration-700" dir="rtl">
+        <div className="h-24 w-24 bg-brand-primary/10 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-brand-primary/5">
+          <Award className="h-12 w-12 text-brand-primary" />
+        </div>
+        
+        <div className="space-y-3">
+          <h2 className="text-4xl font-black text-slate-900 leading-tight">لقد أتممت هذا الاختبار 🎉</h2>
+          <p className="text-slate-500 font-bold text-lg">درجتك في المحاولة السابقة كانت:</p>
+        </div>
+
+        <div className="bg-white p-12 rounded-[3rem] shadow-premium border border-slate-50 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-2 bg-brand-primary/20" />
+          <div className="relative z-10">
+            <p className="text-7xl font-black text-brand-primary mb-2">{previousResult.score}%</p>
+            <p className="text-slate-400 font-bold">بتاريخ {new Date(previousResult.submittedAt).toLocaleDateString('ar-EG')}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Button variant="outline" size="lg" onClick={onBack} className="h-16 px-12 rounded-2xl font-black min-w-[200px]">
+            العودة للمنصة
+          </Button>
+          
+          {previousResult.allowRetake ? (
+            <Button 
+              variant="primary" 
+              size="lg" 
+              onClick={() => setIsRetaking(true)}
+              className="h-16 px-12 rounded-2xl font-black shadow-xl shadow-brand-primary/30 min-w-[200px] animate-pulse hover:animate-none"
+            >
+              بدء محاولة جديدة 🔄
+            </Button>
+          ) : (
+            <div className="bg-amber-50 text-amber-700 px-8 py-5 rounded-2xl border border-amber-100 font-bold text-sm flex items-center gap-3">
+              <AlertCircle className="h-5 w-5" />
+              يمكنك إعادة الاختبار فقط بعد حصولك على إذن من المعلم.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ─── Loading / Error ──────────────────────────────────────────────────────
   if (loading) return (

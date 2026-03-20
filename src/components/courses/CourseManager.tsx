@@ -59,6 +59,7 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
   const [isActive, setIsActive] = useState(true);
   const [sections, setSections] = useState<Section[]>([]);
   const [availableQuizzes, setAvailableQuizzes] = useState<any[]>([]);
+  const [availableHomeworks, setAvailableHomeworks] = useState<any[]>([]);
   const [loading, setLoading] = useState(!!editCourseId);
   const [sendToStudent, setSendToStudent] = useState(true);
   const [sendToParent, setSendToParent] = useState(false);
@@ -92,17 +93,31 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
   }, [editCourseId]);
 
   useEffect(() => {
-    // Fetch quizzes created by this teacher to link them in lessons
+    // Fetch quizzes and homeworks created by this teacher to link them in lessons
     if (!profile?.uid) return;
-    const q = query(
+    
+    const q1 = query(
       collection(db, 'quizzes'), 
       where('teacherId', '==', profile.uid),
       orderBy('createdAt', 'desc')
     );
-    const unsubscribe = onSnapshot(q, (snap) => {
+    const unsubscribe1 = onSnapshot(q1, (snap) => {
       setAvailableQuizzes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => unsubscribe();
+
+    const q2 = query(
+      collection(db, 'homework'), 
+      where('teacherId', '==', profile.uid),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe2 = onSnapshot(q2, (snap) => {
+      setAvailableHomeworks(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribe1();
+      unsubscribe2();
+    };
   }, [profile]);
 
   const addSection = () => {
@@ -686,7 +701,7 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
                               />
                             )}
 
-                            {lesson.type !== 'QUIZ' && lesson.type !== 'IMAGE' && lesson.type !== 'PDF' && lesson.type !== 'VIDEO' && (
+                            {lesson.type !== 'QUIZ' && lesson.type !== 'IMAGE' && lesson.type !== 'PDF' && lesson.type !== 'VIDEO' && lesson.type !== 'HOMEWORK' && (
                               <FileUpload 
                                 path={`courses/${editCourseId || 'new'}/lessons/${lesson.id}`}
                                 label={`ارفع ملف ${lesson.type === 'VIDEO' ? 'فيديو' : 'مستند'}`}
@@ -725,7 +740,12 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
 
                             {lesson.type === 'QUIZ' && (
                               <div className="space-y-2 pb-2">
-                                <label className="text-[10px] font-black text-slate-400 mr-2">اختر اختباراً من بنك الامتحانات</label>
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[10px] font-black text-slate-400 mr-2">اختر اختباراً من بنك الامتحانات</label>
+                                  <a href="/dashboard" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-primary font-bold hover:underline">
+                                    + إنشاء اختبار جديد بالذكاء الاصطناعي
+                                  </a>
+                                </div>
                                 <select 
                                   className="w-full h-10 rounded-xl bg-white border border-slate-200 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all"
                                   value={lesson.contentUrl || ''}
@@ -738,6 +758,30 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
                                 </select>
                                 {availableQuizzes.length === 0 && (
                                   <p className="text-[10px] text-amber-600 font-bold p-2 bg-amber-50 rounded-lg">لا توجد اختبارات متاحة حالياً.</p>
+                                )}
+                              </div>
+                            )}
+
+                            {lesson.type === 'HOMEWORK' && (
+                              <div className="space-y-2 pb-2">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[10px] font-black text-slate-400 mr-2">اختر واجباً من بنك الواجبات</label>
+                                  <a href="/dashboard" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-primary font-bold hover:underline">
+                                    + إنشاء واجب جديد
+                                  </a>
+                                </div>
+                                <select 
+                                  className="w-full h-10 rounded-xl bg-white border border-slate-200 px-4 font-bold text-xs outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all"
+                                  value={lesson.contentUrl || ''}
+                                  onChange={(e) => updateLesson(section.id, lesson.id, { contentUrl: e.target.value })}
+                                >
+                                  <option value="">-- اختر واجباً --</option>
+                                  {availableHomeworks.map(hw => (
+                                    <option key={hw.id} value={hw.id}>{hw.title} ({hw.subject})</option>
+                                  ))}
+                                </select>
+                                {availableHomeworks.length === 0 && (
+                                  <p className="text-[10px] text-amber-600 font-bold p-2 bg-amber-50 rounded-lg">لا توجد واجبات متاحة حالياً.</p>
                                 )}
                               </div>
                             )}

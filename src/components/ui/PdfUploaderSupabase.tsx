@@ -27,13 +27,16 @@ export const PdfUploaderSupabase = ({
       return;
     }
 
-    if (file.type !== "application/pdf") {
-      setError("عذراً، يجب اختيار ملف PDF فقط.");
+    const isPdf = file.type === "application/pdf";
+    const isImage = file.type.startsWith("image/");
+    
+    if (!isPdf && !isImage && !file.name.match(/\.(doc|docx|xls|xlsx|ppt|pptx|zip|rar)$/i)) {
+      setError("عذراً، نوع الملف غير مدعوم. يرجى اختيار PDF أو صورة أو ملف أوفيس.");
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError("حجم الملف كبير جداً. الحد الأقصى هو 10 ميجابايت.");
+    if (file.size > 25 * 1024 * 1024) {
+      setError("حجم الملف كبير جداً. الحد الأقصى هو 25 ميجابايت.");
       return;
     }
 
@@ -59,9 +62,9 @@ export const PdfUploaderSupabase = ({
           <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
             <UploadCloud className="w-8 h-8 mb-3 text-brand-primary/60 group-hover:text-brand-primary transition-colors" />
             <p className="mb-2 text-sm text-slate-500 font-bold">{label}</p>
-            <p className="text-[10px] text-slate-400">PDF فقط (بحد أقصى 10MB)</p>
+            <p className="text-[10px] text-slate-400">PDF، صور، أو ملفات أوفيس (بحد أقصى 25MB)</p>
           </div>
-          <input type="file" className="hidden" accept=".pdf" onChange={handleFileChange} />
+          <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar" onChange={handleFileChange} />
         </label>
       )}
 

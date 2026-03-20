@@ -1,4 +1,4 @@
-import { LogOut, User as UserIcon, Bell, Menu, Search, Accessibility, UserPlus, GraduationCap, X } from 'lucide-react';
+import { LogOut, User as UserIcon, Bell, Menu, Search, Accessibility, UserPlus, GraduationCap, X, Home } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useEducatorsAuth } from '../auth/AuthProvider';
 import { useState } from 'react';
@@ -34,12 +34,28 @@ export const Header = ({ onMenuClick, onNavigate }: { onMenuClick?: () => void, 
             <Menu className="h-6 w-6" />
           </button>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white/20 backdrop-blur-xl rounded-xl sm:rounded-[1.25rem] border border-white/20 flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95 cursor-pointer shrink-0">
+          <div 
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer group/logo"
+            onClick={() => onNavigate?.('DASHBOARD')}
+            title="العودة للصفحة الرئيسية"
+          >
+            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white/20 backdrop-blur-xl rounded-xl sm:rounded-[1.25rem] border border-white/20 flex items-center justify-center shadow-xl transition-transform group-hover/logo:scale-110 active:scale-95 shrink-0">
               <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-brand-primary" />
             </div>
-            <span className="font-black text-xl sm:text-3xl text-brand-primary hidden sm:inline-block tracking-tight brand-text">التربويين</span>
+            <span className="font-black text-xl sm:text-3xl text-brand-primary hidden sm:inline-block tracking-tight brand-text group-hover/logo:opacity-80 transition-opacity">التربويين</span>
           </div>
+
+          {/* Home button — quick navigation */}
+          {user && (
+            <button
+              className="h-9 w-9 flex items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white transition-all active:scale-95 shrink-0"
+              onClick={() => onNavigate?.('DASHBOARD')}
+              aria-label="الصفحة الرئيسية"
+              title="الصفحة الرئيسية"
+            >
+              <Home className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Center: Search bar — desktop only */}
