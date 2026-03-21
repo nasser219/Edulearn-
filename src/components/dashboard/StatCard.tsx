@@ -25,21 +25,21 @@ export const StatCard = ({ label, value, icon: Icon, trend, className, color, on
       )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
-        <div className="flex items-center gap-4">
+      <CardContent className="p-4 sm:p-6 h-full flex flex-col justify-center">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className={cn(
-            "h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm",
+            "h-12 w-12 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm shrink-0",
             color || "bg-brand-primary/10 text-brand-primary"
           )}>
-            <Icon className="h-7 w-7" />
+            <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
           </div>
-          <div className="flex-1">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{value}</h3>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 truncate sm:whitespace-normal">{label}</p>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight truncate">{value}</h3>
               {trend && (
                 <div className={cn(
-                  "text-[10px] font-black px-2 py-0.5 rounded-lg mr-2",
+                  "text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-lg shrink-0",
                   trend.isPositive ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
                 )}>
                   {trend.isPositive ? '↑' : '↓'} {trend.value}%

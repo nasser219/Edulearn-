@@ -145,41 +145,43 @@ export const TeacherDashboard = ({ onNavigate, onEditCourse }: { onNavigate?: (v
 
   return (
     <div className="space-y-12 pb-12">
-      <div className="flex items-center justify-between px-2">
-        <div className="text-right space-y-1">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">لوحة تحكم المعلم</h2>
-          <p className="text-slate-500 font-bold italic">أهلاً بك يا أستاذ {profile?.fullName.split(' ')[0]}، إليك متابعة سريعة لطلابك.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+        <div className="text-right space-y-1 md:max-w-md">
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">لوحة تحكم المعلم</h2>
+          <p className="text-slate-500 font-bold italic leading-relaxed">أهلاً بك يا أستاذ {profile?.fullName.split(' ')[0]}، إليك متابعة سريعة لطلابك.</p>
         </div>
-        <Button 
-          variant="primary" 
-          className="rounded-2xl px-8 py-4 h-auto font-black shadow-lg shadow-brand-primary/30 flex items-center gap-2 group"
-          onClick={() => onNavigate?.('MANAGE_COURSES')}
-        >
-          <div className="bg-white/20 p-1.5 rounded-lg group-hover:rotate-90 transition-transform">
-            <Plus className="h-5 w-5" />
-          </div>
-          إنشاء دورة جديدة
-        </Button>
-        <Button 
-          variant="outline" 
-          className="rounded-2xl px-8 py-4 h-auto font-black border-2 border-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white transition-all shadow-lg flex items-center gap-2 group"
-          onClick={() => onNavigate?.('TEACHER_ANALYTICS')}
-        >
-          <div className="bg-brand-primary/10 p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
-            <BarChart3 className="h-5 w-5" />
-          </div>
-          إحصائيات الطلاب
-        </Button>
-        <Button 
-          variant="outline" 
-          className="rounded-2xl px-8 py-4 h-auto font-black border-2 border-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white transition-all shadow-lg flex items-center gap-2 group"
-          onClick={() => onNavigate?.('PERFORMANCE_AI')}
-        >
-          <div className="bg-brand-primary/10 p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          تحليل الأداء الذكي
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <Button 
+            variant="primary" 
+            className="rounded-2xl px-6 sm:px-8 py-3 sm:py-4 h-auto font-black shadow-lg shadow-brand-primary/30 flex items-center justify-center gap-2 group flex-1 sm:flex-none"
+            onClick={() => onNavigate?.('MANAGE_COURSES')}
+          >
+            <div className="bg-white/20 p-1.5 rounded-lg group-hover:rotate-90 transition-transform hidden sm:block">
+              <Plus className="h-5 w-5" />
+            </div>
+            إنشاء دورة جديدة
+          </Button>
+          <Button 
+            variant="outline" 
+            className="rounded-2xl px-6 sm:px-8 py-3 sm:py-4 h-auto font-black border-2 border-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white transition-all shadow-lg flex items-center justify-center gap-2 group flex-1 sm:flex-none text-xs sm:text-base"
+            onClick={() => onNavigate?.('TEACHER_ANALYTICS')}
+          >
+            <div className="bg-brand-primary/10 p-1.5 rounded-lg group-hover:rotate-12 transition-transform hidden sm:block">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            إحصائيات الطلاب
+          </Button>
+          <Button 
+            variant="outline" 
+            className="rounded-2xl px-6 sm:px-8 py-3 sm:py-4 h-auto font-black border-2 border-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white transition-all shadow-lg flex items-center justify-center gap-2 group flex-1 sm:flex-none text-xs sm:text-base"
+            onClick={() => onNavigate?.('PERFORMANCE_AI')}
+          >
+            <div className="bg-brand-primary/10 p-1.5 rounded-lg group-hover:rotate-12 transition-transform hidden sm:block">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            تحليل الأداء الذكي
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

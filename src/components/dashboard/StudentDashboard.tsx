@@ -156,26 +156,26 @@ export const StudentDashboard = ({ onSelectCourse, onNavigate }: { onSelectCours
             <p className="text-white/80 text-base sm:text-lg md:text-xl font-medium max-w-md leading-relaxed mx-auto md:mx-0">
               يعني دلوقتي وفرنالك منصة تقدر تذاكر من خلالها كل المواد بضغطة واحدة وبأفضل جودة.
             </p>
-            <div className="grid grid-cols-2 lg:flex lg:flex-wrap gap-3 sm:gap-4 pt-4 w-full lg:w-auto">
+            <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 sm:gap-4 pt-4 w-full md:w-auto">
               <Button 
                 onClick={() => onNavigate?.('TEACHERS')}
-                className="bg-brand-secondary text-brand-primary hover:bg-white hover:text-brand-primary px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg transition-all shadow-xl shadow-black/10 w-full lg:w-auto"
+                className="bg-brand-secondary text-brand-primary hover:bg-white hover:text-brand-primary px-2 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[12px] sm:text-lg transition-all shadow-xl shadow-black/10 w-full md:w-auto"
               >
                 تصفح الكورسات
               </Button>
-              <Button variant="ghost" className="text-white border-2 border-white/30 hover:bg-white/10 px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg w-full lg:w-auto" onClick={() => onNavigate?.('QUIZZES')}>
+              <Button variant="ghost" className="text-white border-2 border-white/30 hover:bg-white/10 px-2 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[12px] sm:text-lg w-full md:w-auto" onClick={() => onNavigate?.('QUIZZES')}>
                 جدول الامتحانات
               </Button>
               <Button 
                 onClick={() => onNavigate?.('STUDENT_RESULTS')}
-                className="bg-brand-mint text-white hover:bg-white hover:text-brand-mint px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-1.5 sm:gap-2 w-full lg:w-auto"
+                className="bg-brand-mint text-white hover:bg-white hover:text-brand-mint px-2 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[12px] sm:text-lg transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-1.5 sm:gap-2 w-full md:w-auto"
               >
                 <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 hidden sm:block" />
                 تحليل أدائي
               </Button>
               <Button 
                 onClick={() => onNavigate?.('HOMEWORK')}
-                className="bg-white text-brand-primary hover:bg-brand-secondary hover:text-brand-primary px-3 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[13px] sm:text-lg transition-all shadow-xl shadow-black/10 w-full lg:w-auto"
+                className="bg-white text-brand-primary hover:bg-brand-secondary hover:text-brand-primary px-2 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[12px] sm:text-lg transition-all shadow-xl shadow-black/10 w-full md:w-auto"
               >
                 المهام 📝
               </Button>
