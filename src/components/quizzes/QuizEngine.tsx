@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AlertCircle, XCircle, CheckCircle2, Award, Clock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardFooter } from '../ui/Card';
+import { toast } from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { doc, getDoc, addDoc, collection, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useEducatorsAuth } from '../auth/AuthProvider';
+import { createNotification } from '../../hooks/useNotifications';
 import { SecurityOverlay } from '../security/SecurityOverlay';
 
 export const QuizEngine = ({ quizId, onBack, onComplete }: { 
@@ -25,6 +27,8 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [previousResult, setPreviousResult] = useState<any>(null);
   const [isRetaking, setIsRetaking] = useState(false);
+  const [retakeRequestStatus, setRetakeRequestStatus] = useState<string | null>(null);
+  const [isRequestingRetake, setIsRequestingRetake] = useState(false);
 
   const isFinishedRef = useRef(false);
   // Keep live refs so handleFinish always has latest values
@@ -46,19 +50,33 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
           where('courseId', '==', quizId)
         ));
 
+        // 1.5 Check for retake requests
+        const requestsSnap = await getDocs(query(
+          collection(db, 'retake_requests'),
+          where('studentId', '==', profile.uid),
+          where('quizId', '==', quizId)
+        ));
+
+        if (!requestsSnap.empty) {
+          const sorted = requestsSnap.docs.map((d: any) => d.data()).sort((a: any, b: any) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setRetakeRequestStatus(sorted[0].status);
+        }
+
         if (!resultsSnap.empty) {
           const resData = resultsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => 
             new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
           );
           
-          setPreviousResult(resData[0]); // Get the most recent result
+          setPreviousResult(resData[0]);
+          setAnswers(resData[0].answers || {});
+          setScore(resData[0].score || 0);
+          if (resData[0].cheatInfo) setCheatInfo(resData[0].cheatInfo);
           
-          // Only stop if they aren't authorized to retake
           const hasRetakePermission = resData.some((r: any) => r.allowRetake === true);
-          if (!hasRetakePermission && !isRetaking) {
-            setLoading(false);
-            return;
-          }
+          // If they have explicit permission, allow them to enter the quiz if isRetaking was set
+          // Otherwise, we still load quiz metadata so handleRequestRetake can function.
         }
 
         // 2. Fetch Quiz Data
@@ -192,6 +210,39 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleRequestRetake = async () => {
+    if (!profile?.uid || !quiz) return;
+    setIsRequestingRetake(true);
+    try {
+      await addDoc(collection(db, 'retake_requests'), {
+        quizId,
+        quizTitle: quiz.title,
+        teacherId: quiz.teacherId,
+        studentId: profile.uid,
+        studentName: profile.fullName,
+        status: 'PENDING',
+        createdAt: new Date().toISOString()
+      });
+
+      // Notify the teacher
+      await createNotification({
+        userId: quiz.teacherId,
+        title: 'طلب إعادة اختبار 🔄',
+        message: `الطالب ${profile.fullName} يطلب إعادة اختبار "${quiz.title}"`,
+        type: 'SYSTEM',
+        link: 'QUIZZES'
+      });
+
+      setRetakeRequestStatus('PENDING');
+      toast.success('تم إرسال طلب الإعادة للمعلم');
+    } catch (error) {
+      console.error('Error requesting retake', error);
+      toast.error('حدث خطأ أثناء إرسال الطلب.');
+    } finally {
+      setIsRequestingRetake(false);
+    }
+  };
+
   // ─── Previous Result Guard View ───────────────────────────────────────────
   if (previousResult && !isRetaking && !isFinished) {
     return (
@@ -217,6 +268,15 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
           <Button variant="outline" size="lg" onClick={onBack} className="h-16 px-12 rounded-2xl font-black min-w-[200px]">
             العودة للمنصة
           </Button>
+
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => setIsFinished(true)} 
+            className="h-16 px-12 rounded-2xl font-black min-w-[200px] border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+          >
+            عرض إجاباتك 📝
+          </Button>
           
           {previousResult.allowRetake ? (
             <Button 
@@ -227,11 +287,25 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
             >
               بدء محاولة جديدة 🔄
             </Button>
-          ) : (
+          ) : retakeRequestStatus === 'PENDING' ? (
             <div className="bg-amber-50 text-amber-700 px-8 py-5 rounded-2xl border border-amber-100 font-bold text-sm flex items-center gap-3">
-              <AlertCircle className="h-5 w-5" />
-              يمكنك إعادة الاختبار فقط بعد حصولك على إذن من المعلم.
+              <Clock className="h-5 w-5 animate-pulse" />
+              طلب الإعادة قيد المراجعة من المعلم...
             </div>
+          ) : retakeRequestStatus === 'REJECTED' ? (
+            <div className="bg-red-50 text-red-700 px-8 py-5 rounded-2xl border border-red-100 font-bold text-sm flex items-center gap-3">
+              <AlertCircle className="h-5 w-5" />
+              تم رفض طلب إعادة الاختبار من قبل المعلم.
+            </div>
+          ) : (
+            <Button 
+              variant="outline"
+              onClick={handleRequestRetake}
+              isLoading={isRequestingRetake}
+              className="bg-white border-2 border-brand-primary text-brand-primary h-16 px-8 rounded-2xl font-black shadow-lg hover:bg-brand-primary hover:text-white transition-all min-w-[200px]"
+            >
+              اطلب من المعلم إعادة الامتحان 📄
+            </Button>
           )}
         </div>
       </div>
@@ -312,13 +386,27 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
                                   isEssay ? "text-slate-600" :
                                     isCorrect ? "text-emerald-700" : "text-red-700 font-black"
                                 )}>
-                                  {answers[q.id] || '(لم يتم الإجابة)'}
+                                {answers[q.id] || '(لم يتم الإجابة)'}
+                              </span>
+                              {!isEssay && (
+                                <span className={cn(
+                                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black",
+                                  isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                                )}>
+                                  {isCorrect ? (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      إجابة صحيحة
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="h-3 w-3" />
+                                      إجابة خاطئة
+                                    </>
+                                  )}
                                 </span>
-                                {!isEssay && (isCorrect
-                                  ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                  : <XCircle className="h-4 w-4 text-red-600" />
-                                )}
-                              </p>
+                              )}
+                            </p>
                               {!isCorrect && !isEssay && (
                                 <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
                                   <span className="text-slate-400">الإجابة الصحيحة:</span>{q.correctAnswer}

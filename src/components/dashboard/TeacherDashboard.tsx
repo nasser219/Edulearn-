@@ -212,7 +212,7 @@ export const TeacherDashboard = ({ onNavigate, onEditCourse }: { onNavigate?: (v
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <table className="w-full text-right" dir="rtl">
+              <table className="w-full text-right min-w-[800px]" dir="rtl">
                 <thead className="bg-[#fbfcff] text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
                   <tr>
                     <th className="px-8 py-4 font-black">اسم الدورة</th>

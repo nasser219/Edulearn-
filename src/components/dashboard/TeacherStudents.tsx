@@ -455,7 +455,7 @@ export const TeacherStudents = ({ selectedCourseId, onBack }: { selectedCourseId
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             {activeTab === 'ACTIVE' ? (
-              <table className="w-full text-right">
+              <table className="w-full text-right min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50">
                     <th className="p-6 text-[10px] font-black text-slate-500 uppercase border-b border-slate-100">الطالب</th>
@@ -532,7 +532,7 @@ export const TeacherStudents = ({ selectedCourseId, onBack }: { selectedCourseId
                 </tbody>
               </table>
             ) : (
-              <table className="w-full text-right">
+              <table className="w-full text-right min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50">
                     <th className="p-6 text-[10px] font-black text-slate-500 uppercase border-b border-slate-100">الطالب</th>

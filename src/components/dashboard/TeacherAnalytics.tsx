@@ -344,7 +344,7 @@ export const TeacherAnalytics = ({ onBack }: { onBack: () => void }) => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-right">
+            <table className="w-full text-right min-w-[800px]">
               <thead className="bg-[#fbfcff] text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
                 <tr>
                   <th className="px-6 py-4 font-black">#</th>

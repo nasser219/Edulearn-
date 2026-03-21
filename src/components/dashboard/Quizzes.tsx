@@ -54,8 +54,9 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
     subject: null,
     teacher: null
   });
-  const [activeTab, setActiveTab] = useState<'QUIZZES' | 'REQUESTS' | 'VIOLATIONS' | 'RESULTS' | 'UPCOMING'>('QUIZZES');
+  const [activeTab, setActiveTab] = useState<'QUIZZES' | 'REQUESTS' | 'VIOLATIONS' | 'RESULTS' | 'UPCOMING' | 'RETAKE_REQUESTS'>('QUIZZES');
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [retakeRequests, setRetakeRequests] = useState<any[]>([]);
   const [violations, setViolations] = useState<any[]>([]);
   const [allResults, setAllResults] = useState<any[]>([]);
   const [authorizedQuizzes, setAuthorizedQuizzes] = useState<string[]>([]);
@@ -197,6 +198,22 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
       });
     }
 
+    // 8. Fetch Retake Requests
+    let unsubscribeRetakeRequests = () => { };
+    if ((isTeacher() || isAdmin()) && profile?.uid) {
+      const rqQuery = query(
+        collection(db, 'retake_requests'),
+        orderBy('createdAt', 'desc')
+      );
+      unsubscribeRetakeRequests = onSnapshot(rqQuery, (snap) => {
+        let docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (isTeacher() && !isAdmin()) {
+          docs = docs.filter((d: any) => d.teacherId === profile.uid);
+        }
+        setRetakeRequests(docs);
+      });
+    }
+
     return () => {
       unsubscribeQuizzes();
       unsubscribeEnrollments();
@@ -205,6 +222,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
       unsubscribeResults();
       unsubscribeUpcoming();
       unsubscribeStudentResults();
+      unsubscribeRetakeRequests();
     };
   }, [profile, isStudent, isTeacher]);
 
@@ -366,6 +384,48 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
       }
     } catch (error) {
       console.error("Error handling request:", error);
+    }
+  };
+
+  const handleApproveRetake = async (request: any, approved: boolean) => {
+    try {
+      const { doc, updateDoc, collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      await updateDoc(doc(db, 'retake_requests', request.id), {
+        status: approved ? 'APPROVED' : 'REJECTED',
+        processedAt: new Date().toISOString()
+      });
+
+      if (approved) {
+        const resultsSnap = await getDocs(query(
+          collection(db, 'quiz_results'),
+          where('studentId', '==', request.studentId),
+          where('courseId', '==', request.quizId)
+        ));
+        const updatePromises = resultsSnap.docs.map(d => updateDoc(d.ref, { allowRetake: true }));
+        await Promise.all(updatePromises);
+        
+        toast.success('تمت الموافقة على إعادة الاختبار 🎉');
+        await createNotification({
+          userId: request.studentId,
+          title: 'طلب إعادة الاختبار مقبول ✅',
+          message: `لقد وافق المعلم على طلبك لإعادة اختبار "${request.quizTitle}"`,
+          type: 'SYSTEM',
+          link: 'QUIZZES'
+        });
+      } else {
+        toast.error('تم رفض طلب الإعادة');
+        await createNotification({
+          userId: request.studentId,
+          title: 'طلب إعادة الاختبار مرفوض ❌',
+          message: `لقد رفض المعلم طلبك لإعادة اختبار "${request.quizTitle}"`,
+          type: 'SYSTEM',
+          link: 'QUIZZES'
+        });
+      }
+    } catch (error) {
+       console.error("Error processing retake request:", error);
+       toast.error('حدث خطأ أثناء معالجة الطلب');
     }
   };
 
@@ -684,6 +744,19 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
               )}
             </button>
             <button 
+              onClick={() => setActiveTab('RETAKE_REQUESTS')}
+              className={cn(
+                "px-8 py-3 rounded-2xl font-black transition-all shrink-0 flex items-center gap-2",
+                activeTab === 'RETAKE_REQUESTS' ? "bg-amber-600 text-white shadow-xl" : "bg-white text-slate-400 hover:bg-slate-50"
+              )}
+            >
+              طلبات الإعادة {retakeRequests.filter(r => r.status === 'PENDING').length > 0 && (
+                <span className="h-5 w-5 bg-white text-amber-600 text-[10px] rounded-full flex items-center justify-center font-black animate-pulse">
+                  {retakeRequests.filter(r => r.status === 'PENDING').length}
+                </span>
+              )}
+            </button>
+            <button 
               onClick={() => setActiveTab('RESULTS')}
               className={cn(
                 "px-8 py-3 rounded-2xl font-black transition-all shrink-0 flex items-center gap-2",
@@ -928,7 +1001,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
             </div>
             <CardContent className="p-0">
                <div className="overflow-x-auto">
-                 <table className="w-full text-right border-collapse">
+                 <table className="w-full text-right border-collapse min-w-[800px]">
                    <thead>
                       <tr className="bg-slate-50/50">
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">الطالب</th>
@@ -984,6 +1057,87 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
         </div>
       )}
 
+      {activeTab === 'RETAKE_REQUESTS' && (
+        <div className="space-y-6 pb-20">
+          <Card className="border-none shadow-premium bg-white rounded-[2.5rem] overflow-hidden">
+            <div className="p-8 border-b border-slate-50">
+              <h3 className="text-xl font-black text-slate-800">طلبات إعادة الاختبار 🔄</h3>
+              <p className="text-xs text-slate-400 font-bold">مراجعة والرد على طلبات الطلاب لإعادة الامتحانات</p>
+            </div>
+            <CardContent className="p-0">
+               <div className="overflow-x-auto">
+                 <table className="w-full text-right border-collapse min-w-[800px]">
+                   <thead>
+                      <tr className="bg-slate-50/50">
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">الطالب</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">الامتحان</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">الحالة</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">التاريخ</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 text-left">الإجراءات</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {retakeRequests.map((req) => (
+                        <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-6">
+                            <p className="font-black text-slate-900">{req.studentName}</p>
+                            <p className="text-[10px] text-slate-400 font-bold">UID: {req.studentId?.slice(0, 8)}</p>
+                          </td>
+                          <td className="p-6">
+                            <p className="font-bold text-slate-700">{req.quizTitle}</p>
+                          </td>
+                          <td className="p-6">
+                            <span className={cn(
+                              "px-3 py-1 rounded-full text-[10px] font-black",
+                              req.status === 'PENDING' ? "bg-amber-100 text-amber-700" :
+                              req.status === 'APPROVED' ? "bg-emerald-100 text-emerald-700" :
+                              "bg-red-100 text-red-700"
+                            )}>
+                              {req.status === 'PENDING' ? 'قيد الانتظار' :
+                               req.status === 'APPROVED' ? 'مقبول' : 'مرفوض'}
+                            </span>
+                          </td>
+                          <td className="p-6">
+                            <p className="text-xs font-bold text-slate-500">{new Date(req.createdAt).toLocaleDateString('ar-EG')}</p>
+                          </td>
+                          <td className="p-6">
+                            <div className="flex items-center justify-end gap-2">
+                              {req.status === 'PENDING' && (
+                                <>
+                                 <Button 
+                                   size="sm" 
+                                   className="rounded-xl h-9 px-4 font-black bg-emerald-600 hover:bg-emerald-700 text-white"
+                                   onClick={() => handleApproveRetake(req, true)}
+                                 >
+                                   سماح ✅
+                                 </Button>
+                                 <Button 
+                                   variant="outline"
+                                   size="sm" 
+                                   className="rounded-xl h-9 px-4 font-black text-red-500 border-red-100 hover:bg-red-50"
+                                   onClick={() => handleApproveRetake(req, false)}
+                                 >
+                                   رفض ❌
+                                 </Button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {retakeRequests.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-20 text-center text-slate-400 font-bold">لا توجد طلبات إعادة امتحانات حالياً.</td>
+                        </tr>
+                      )}
+                   </tbody>
+                 </table>
+               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {activeTab === 'VIOLATIONS' && (
         /* VIOLATIONS VIEW */
         <div className="space-y-6 pb-20">
@@ -1001,7 +1155,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
             </div>
             <CardContent className="p-0">
                <div className="overflow-x-auto">
-                 <table className="w-full text-right border-collapse">
+                 <table className="w-full text-right border-collapse min-w-[800px]">
                    <thead>
                       <tr className="bg-slate-50/50">
                         <th className="p-6 w-14 border-b border-slate-100">
@@ -1080,7 +1234,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
             </div>
             <CardContent className="p-0">
                <div className="overflow-x-auto">
-                 <table className="w-full text-right border-collapse">
+                 <table className="w-full text-right border-collapse min-w-[800px]">
                    <thead>
                       <tr className="bg-slate-50/50">
                         <th className="p-6 w-14 border-b border-slate-100">
@@ -1196,7 +1350,7 @@ export const Quizzes = ({ onNavigate, onStartQuiz, onEditQuiz }: {
             </div>
             <CardContent className="p-0">
                <div className="overflow-x-auto">
-                 <table className="w-full text-right border-collapse">
+                 <table className="w-full text-right border-collapse min-w-[800px]">
                    <thead>
                       <tr className="bg-slate-50/50">
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">اسم الاختبار</th>

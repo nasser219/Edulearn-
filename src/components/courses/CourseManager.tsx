@@ -11,8 +11,11 @@ import {
   Layers,
   FileDown,
   Pencil,
-  Clock
+  Clock,
+  X,
+  Upload
 } from 'lucide-react';
+import { QuizCreator } from '../quizzes/QuizCreator';
 import { Button } from '../ui/Button';
 import { doc, collection, addDoc, getDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -28,6 +31,7 @@ import { Search } from 'lucide-react';
 import { sendWhatsAppNotification, normalizePhoneNumber } from '../../lib/whatsapp';
 import { PdfUploaderSupabase } from '../ui/PdfUploaderSupabase';
 import { VideoUploaderStream } from '../ui/VideoUploaderStream';
+import { uploadFileToSupabase } from '../../lib/supabase';
 
 interface Lesson {
   id: string;
@@ -63,6 +67,16 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
   const [loading, setLoading] = useState(!!editCourseId);
   const [sendToStudent, setSendToStudent] = useState(true);
   const [sendToParent, setSendToParent] = useState(false);
+
+  // States for inline creation
+  const [showQuizCreator, setShowQuizCreator] = useState(false);
+  const [showHomeworkCreator, setShowHomeworkCreator] = useState(false);
+  const [hwTitle, setHwTitle] = useState('');
+  const [hwDesc, setHwDesc] = useState('');
+  const [hwDueDate, setHwDueDate] = useState('');
+  const [hwMaxGrade, setHwMaxGrade] = useState(100);
+  const [hwAttachment, setHwAttachment] = useState<File | null>(null);
+  const [hwIsSubmitting, setHwIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -144,6 +158,43 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
       }
       return s;
     }));
+  };
+
+  const handleCreateHomework = async () => {
+    if (!hwTitle || !hwDueDate || !profile?.uid) return;
+    setHwIsSubmitting(true);
+    try {
+      let attachmentUrl = '';
+      if (hwAttachment) {
+        attachmentUrl = await uploadFileToSupabase(hwAttachment, 'homework-attachments');
+      }
+
+      await addDoc(collection(db, 'homework'), {
+        title: hwTitle,
+        description: hwDesc,
+        subject: profile.subject || courseStage || '',
+        courseId: editCourseId || 'new', // It might be unassigned if course is brand new and unsaved
+        courseTitle: courseTitle || '',
+        teacherId: profile.uid,
+        teacherName: profile.fullName,
+        dueDate: hwDueDate,
+        status: 'ACTIVE',
+        submissions: 0,
+        attachmentUrl,
+        maxGrade: hwMaxGrade,
+        stage: profile.stage || courseStage || '',
+        grade: profile.grade || courseGrade || '',
+        createdAt: new Date().toISOString(),
+      });
+
+      setShowHomeworkCreator(false);
+      setHwTitle(''); setHwDesc(''); setHwDueDate(''); setHwAttachment(null);
+    } catch (e: any) {
+      console.error('Error creating homework:', e);
+      alert(`حدث خطأ أثناء إنشاء الواجب: ${e.message}`);
+    } finally {
+      setHwIsSubmitting(false);
+    }
   };
 
   const updateSectionTitle = (id: string, title: string) => {
@@ -742,7 +793,7 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
                               <div className="space-y-2 pb-2">
                                 <div className="flex items-center justify-between">
                                   <label className="text-[10px] font-black text-slate-400 mr-2">اختر اختباراً من بنك الامتحانات</label>
-                                  <a href="/dashboard" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-primary font-bold hover:underline">
+                                  <a href="/?view=CREATE_QUIZ" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-primary font-bold hover:underline" onClick={(e) => { e.preventDefault(); setShowQuizCreator(true); }}>
                                     + إنشاء اختبار جديد بالذكاء الاصطناعي
                                   </a>
                                 </div>
@@ -766,7 +817,7 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
                               <div className="space-y-2 pb-2">
                                 <div className="flex items-center justify-between">
                                   <label className="text-[10px] font-black text-slate-400 mr-2">اختر واجباً من بنك الواجبات</label>
-                                  <a href="/dashboard" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-primary font-bold hover:underline">
+                                  <a href="/?view=HOMEWORK" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-primary font-bold hover:underline" onClick={(e) => { e.preventDefault(); setShowHomeworkCreator(true); }}>
                                     + إنشاء واجب جديد
                                   </a>
                                 </div>
@@ -846,6 +897,73 @@ export const CourseManager = ({ onBack, editCourseId }: { onBack: () => void, ed
           </div>
         </div>
       </div>
+
+      {/* ══════ QUIZ CREATOR OVERLAY ══════ */}
+      {showQuizCreator && (
+        <div className="fixed inset-0 z-[100] bg-[#f8fbff] overflow-y-auto">
+          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <QuizCreator onBack={() => setShowQuizCreator(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* ══════ HOMEWORK CREATOR OVERLAY ══════ */}
+      {showHomeworkCreator && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" dir="rtl">
+          <div className="bg-white rounded-[2rem] w-full max-w-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                <div className="h-10 w-10 bg-brand-primary/10 text-brand-primary rounded-xl flex items-center justify-center">
+                  <Plus className="h-5 w-5" />
+                </div>
+                إضافة واجب جديد سريع
+              </h3>
+              <button onClick={() => setShowHomeworkCreator(false)} className="p-2 hover:bg-slate-100 rounded-full"><X className="h-5 w-5 text-slate-400" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-black text-slate-600">عنوان الواجب *</label>
+                <input value={hwTitle} onChange={e => setHwTitle(e.target.value)} placeholder="مثال: حل تمارين الصفحة 45"
+                  className="w-full h-12 px-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-brand-primary outline-none transition-all" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-black text-slate-600">وصف الواجب</label>
+                <textarea value={hwDesc} onChange={e => setHwDesc(e.target.value)} rows={3} placeholder="أضف تعليمات أو ملاحظات للطلاب..."
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-brand-primary outline-none transition-all resize-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-600">تاريخ التسليم *</label>
+                  <input type="date" value={hwDueDate} onChange={e => setHwDueDate(e.target.value)}
+                    className="w-full h-12 px-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-brand-primary outline-none transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-600">الدرجة القصوى</label>
+                  <input type="number" value={hwMaxGrade} onChange={e => setHwMaxGrade(Number(e.target.value))} min={1} max={1000}
+                    className="w-full h-12 px-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-brand-primary outline-none transition-all" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-black text-slate-600">مرفق (اختياري)</label>
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-brand-primary/30 transition-colors">
+                  <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.heic,.gif" onChange={e => setHwAttachment(e.target.files?.[0] || null)} className="hidden" id="hw-inline-attachment" />
+                  <label htmlFor="hw-inline-attachment" className="cursor-pointer">
+                    <Upload className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm font-bold text-slate-400">{hwAttachment ? hwAttachment.name : 'اضغط لرفع ملف PDF أو صورة'}</p>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <Button variant="ghost" onClick={() => setShowHomeworkCreator(false)} className="rounded-xl font-bold">إلغاء</Button>
+              <Button variant="primary" onClick={handleCreateHomework} isLoading={hwIsSubmitting} disabled={!hwTitle || !hwDueDate}
+                className="rounded-xl font-black px-8 shadow-lg">
+                حفظ وإضافة
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

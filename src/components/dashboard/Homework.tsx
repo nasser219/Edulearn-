@@ -367,7 +367,7 @@ export const Homework = () => {
         
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-right border-collapse">
+            <table className="w-full text-right border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-100">عنوان الواجب والمادة</th>

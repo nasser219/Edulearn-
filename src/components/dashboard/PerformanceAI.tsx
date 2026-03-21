@@ -294,7 +294,7 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
            <Button variant="outline" className="rounded-xl font-black">تحميل تقرير كامل (PDF)</Button>
         </CardHeader>
         <CardContent className="p-0">
-           <table className="w-full text-right border-collapse">
+           <table className="w-full text-right border-collapse min-w-[800px]">
               <thead className="bg-[#fbfcff] text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
                  <tr>
                     <th className="px-8 py-4 px-8 font-black">اسم الطالب</th>

@@ -4,6 +4,7 @@ import { Card, CardContent } from '../ui/Card';
 import { cn } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { useEducatorsAuth } from '../auth/AuthProvider';
+import { createNotification } from '../../hooks/useNotifications';
 
 export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfirm, onCancel }: any) => {
   const [method, setMethod] = useState('CARD');
@@ -66,6 +67,15 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
         invoice: `#INV-${Math.floor(Math.random() * 9000) + 1000}`
       });
 
+      // Notify the teacher
+      await createNotification({
+        userId: teacherId,
+        title: 'طلب انضمام جديد (بطاقة) 💳',
+        message: `قام الطالب ${profile?.fullName} بدفع رسوم الكورس "${courseTitle}" عبر البطاقة.`,
+        type: 'ENROLLMENT',
+        link: 'PAYMENTS'
+      });
+
       // Standardized Enrollment ID to prevent duplicates
       const enrollmentId = `${profile?.uid}_${courseId}`;
       const { setDoc, doc } = await import('firebase/firestore');
@@ -111,6 +121,15 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
         status: 'PENDING',
         createdAt: serverTimestamp(),
         invoice: `#INV-${Math.floor(Math.random() * 9000) + 1000}`
+      });
+
+      // Notify the teacher
+      await createNotification({
+        userId: teacherId,
+        title: 'طلب انضمام جديد (يدوي) 📱',
+        message: `قام الطالب ${profile?.fullName} بطلب الانضمام لكورس "${courseTitle}" (انتظار الوصل).`,
+        type: 'ENROLLMENT',
+        link: 'PAYMENTS'
       });
 
       // Standardized Enrollment ID to prevent duplicates

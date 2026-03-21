@@ -272,52 +272,7 @@ export const VideoPlayer = ({
         style={{ top: 0, left: 0, width: '100%', height: '100%' }}
       />
 
-      {/* ── Progress bar overlay at bottom ── */}
-      {!isRecording && (
-        <div className="absolute bottom-0 left-0 right-0 z-[30] pointer-events-none px-2 pb-1">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
-              <div 
-                className="h-full rounded-full transition-all duration-1000 ease-out"
-                style={{ 
-                  width: `${watchedPercent}%`,
-                  background: isCompleted 
-                    ? 'linear-gradient(90deg, #22c55e, #16a34a)' 
-                    : 'linear-gradient(90deg, #8b5cf6, #6d28d9)'
-                }}
-              />
-            </div>
-            {isCompleted && (
-              <CheckCircle2 className="h-4 w-4 text-green-400 drop-shadow-lg animate-in zoom-in duration-300" />
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* ── Manual Completion Fallback Button ── */}
-      {!isCompleted && !isRecording && (
-        <div className="absolute top-6 left-6 z-[60] animate-in bounce-in duration-700">
-           <Button 
-            variant="primary" 
-            size="lg" 
-            className="rounded-2xl h-14 px-8 bg-green-500 hover:bg-green-600 text-white font-black shadow-[0_0_30px_rgba(34,197,94,0.4)] border-2 border-white/30 flex items-center gap-3 active:scale-95 transition-all"
-            onClick={() => {
-              if (confirm('هل انتهيت من مشاهدة الفيديو؟ سيتم احتساب الدرس كملتم وتفعيل الامتحان التالي.')) {
-                hasCalledEndedRef.current = true;
-                setIsCompleted(true);
-                setWatchedPercent(100);
-                onProgress?.(100);
-                onEnded?.();
-              }
-            }}
-           >
-             <div className="bg-white/20 p-1.5 rounded-lg">
-               <CheckCircle2 className="h-5 w-5" />
-             </div>
-             تأكيد اكتمال المشاهدة وتفعيل الامتحان
-           </Button>
-        </div>
-      )}
 
       {/* ── Corner badge ── */}
       {!isRecording && (

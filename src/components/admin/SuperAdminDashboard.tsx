@@ -599,7 +599,7 @@ export const SuperAdminDashboard = ({ forceFilterRole }: { forceFilterRole?: 'ST
 
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
+              <table className="w-full text-right border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50">
                     <th className="p-6 w-12 text-center border-b border-slate-100">
@@ -787,7 +787,7 @@ export const SuperAdminDashboard = ({ forceFilterRole }: { forceFilterRole?: 'ST
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
+              <table className="w-full text-right border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50">
                     {['المعلم', 'المادة', 'بيانات الاتصال', 'الحالة'].map(h => (
@@ -859,7 +859,7 @@ export const SuperAdminDashboard = ({ forceFilterRole }: { forceFilterRole?: 'ST
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-right border-collapse">
+                    <table className="w-full text-right border-collapse min-w-[800px]">
                       <thead>
                         <tr className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                           {['الطالب', 'الصف', 'الكورسات المشترك بها', 'إجمالي المدفوعات', 'نتائج الامتحانات'].map(h => (
@@ -998,7 +998,7 @@ export const SuperAdminDashboard = ({ forceFilterRole }: { forceFilterRole?: 'ST
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
+              <table className="w-full text-right border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50">
                     <th className="p-6 w-12 text-center border-b border-slate-100">
@@ -1102,7 +1102,7 @@ export const SuperAdminDashboard = ({ forceFilterRole }: { forceFilterRole?: 'ST
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
+              <table className="w-full text-right border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                     {['الطالب', 'الامتحان والمدرس', 'الدرجة', 'الحالة', 'التاريخ'].map(h => (
@@ -1197,7 +1197,7 @@ export const SuperAdminDashboard = ({ forceFilterRole }: { forceFilterRole?: 'ST
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
+              <table className="w-full text-right border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                     {['المعلم', 'عدد العمليات', 'إجمالي الإيرادات', 'الحالة الحالية'].map(h => (

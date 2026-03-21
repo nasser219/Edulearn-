@@ -34,6 +34,7 @@ import { MessageCenter } from './components/dashboard/MessageCenter';
 import { StudentResults } from './components/dashboard/StudentResults';
 import { NotificationCenter } from './components/dashboard/NotificationCenter';
 import { NotificationList } from './components/notifications/NotificationList';
+import { NotificationToastListener } from './components/notifications/NotificationToastListener';
 import { UserRole } from './types';
 
 type View = 'DASHBOARD' | 'COURSE_VIEWER' | 'QUIZ' | 'COURSES' | 'MANAGE_COURSES' | 'HOMEWORK' | 'QUIZZES' | 'CREATE_QUIZ' | 'STUDENTS' | 'REPORTS' | 'PAYMENTS' | 'SECURITY' | 'SETTINGS' | 'PERFORMANCE_AI' | 'ANNOUNCEMENTS' | 'TEACHERS' | 'MESSAGES' | 'TEACHER_PROFILE' | 'STUDENT_RESULTS' | 'NOTIFICATION_CENTER' | 'TEACHER_ANALYTICS';
@@ -457,7 +458,15 @@ export default function App() {
 
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<View>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view') as View | null;
+    if (view) {
+      window.history.replaceState({}, '', window.location.pathname);
+      return view;
+    }
+    return 'DASHBOARD';
+  });
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [email, setEmail] = useState('');
@@ -802,7 +811,10 @@ export default function App() {
     >
       <div className="blob-bg" />
 
-      {/* ✅ Header — sticky, full width */}
+      {/* Real-time Notification Popups */}
+      <NotificationToastListener onNavigate={handleNavigate} />
+
+      {/* Header — sticky, full width */}
       <Header
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         onNavigate={setCurrentView}

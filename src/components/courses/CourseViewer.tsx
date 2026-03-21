@@ -761,18 +761,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                 </p>
              </div>
 
-             {currentLesson?.contentUrl && !isVideo(currentLesson.contentUrl) && (
-               <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
-                 <div className="flex items-center gap-3">
-                   <Download className="h-5 w-5 text-brand-primary" />
-                   <div className="text-right">
-                     <p className="text-sm font-bold">تحميل مرفق المحاضرة</p>
-                     <p className="text-[10px] text-slate-500">.{getFileExt(currentLesson.contentUrl)} | تم التحديث مؤخراً</p>
-                   </div>
-                 </div>
-                 <Button variant="primary" size="sm" onClick={handleDownload} className="font-bold px-6 border-none">تحميل الآن</Button>
-               </div>
-             )}
+
           </div>
         </div>
 
