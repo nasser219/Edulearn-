@@ -10,7 +10,7 @@ import { Button } from '../ui/Button';
 // Constants
 // ─────────────────────────────────────────────
 const BUNNY_LIBRARY_ID = '618859';
-const COMPLETION_THRESHOLD = 95; // % to consider video "watched"
+const COMPLETION_THRESHOLD = 85; // % to consider video "watched"
 
 interface VideoPlayerProps {
   src: string;
@@ -37,9 +37,9 @@ const drawWatermark = (canvas: HTMLCanvasElement, text: string, time: number) =>
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, w, h);
   ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = 'white';
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
+  ctx.globalAlpha = 0.18; // Slightly more visible
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
   ctx.shadowBlur = 4;
   ctx.font = `bold ${Math.max(10, w / 55)}px monospace`;
   ctx.textAlign = 'center';
@@ -187,7 +187,7 @@ export const VideoPlayer = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const obs = new ResizeObserver(() => drawWatermark(canvas, watermarkText));
+    const obs = new ResizeObserver(() => drawWatermark(canvas, watermarkText, 0));
     obs.observe(canvas);
     return () => obs.disconnect();
   }, [watermarkText]);

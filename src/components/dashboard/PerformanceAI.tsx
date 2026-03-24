@@ -35,12 +35,15 @@ interface QuizResult {
   id: string;
   studentId: string;
   studentName: string;
-  quizId: string;
+  courseId: string;
+  quizTitle?: string;
   score: number;
-  totalQuestions: number;
+  totalPoints?: number;
+  earnedPoints?: number;
   topic?: string;
   subject?: string;
-  createdAt: string;
+  submittedAt: string;
+  status?: string;
 }
 
 export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
@@ -65,29 +68,47 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
     const analyzeData = async () => {
       if (!profile?.uid) return;
       try {
-        // 1. Fetch all quiz results for this teacher's quizzes
-        // Note: For a real app, you'd filter by teacher quizzes. 
-        // Here we'll fetch results where the teacherId matches (if stored) 
-        // Or fetch all results and filter if we had mapping.
-        // Assuming 'quiz_results' collection exists from QuizEngine saves.
-        const q = query(collection(db, 'quiz_results'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuizResult));
+        // 1. Fetch all quizzes for this teacher to have metadata (subject/topic)
+        const quizzesQuery = query(collection(db, 'quizzes'), where('teacherId', '==', profile.uid));
+        const quizzesSnap = await getDocs(quizzesQuery);
+        const quizzesMap: Record<string, any> = {};
+        quizzesSnap.docs.forEach(doc => {
+          quizzesMap[doc.id] = { id: doc.id, ...doc.data() };
+        });
+
+        // 2. Fetch all quiz results for this teacher's students
+        const resultsQuery = query(
+          collection(db, 'quiz_results'), 
+          where('teacherId', '==', profile.uid),
+          orderBy('submittedAt', 'desc')
+        );
+        const querySnapshot = await getDocs(resultsQuery);
+        const data = querySnapshot.docs.map(doc => {
+          const r = doc.data();
+          const quiz = quizzesMap[r.courseId] || {};
+          return { 
+            id: doc.id, 
+            ...r,
+            // Hydrate with metadata if missing in the result doc
+            subject: quiz.subject || r.subject || 'عام',
+            topic: quiz.title || r.topic || r.quizTitle || 'غير محدد'
+          } as QuizResult;
+        });
         
         setResults(data);
 
-        // 2. Perform Analysis logic
+        // 3. Perform Analysis logic
         if (data.length > 0) {
-          const totalScore = data.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
+          const totalScore = data.reduce((acc, curr) => acc + (Number(curr.score) || 0), 0);
           const avgScore = totalScore / data.length;
 
-          // Group by topic/subject
+          // Group by topic (Quiz Title is the best proxy for topic)
           const topicStats: Record<string, { total: number, count: number }> = {};
           data.forEach(r => {
-            const topic = r.subject || r.topic || 'عام';
-            if (!topicStats[topic]) topicStats[topic] = { total: 0, count: 0 };
-            topicStats[topic].total += (r.score / r.totalQuestions) * 100;
-            topicStats[topic].count += 1;
+            const topicName = r.topic || 'عام';
+            if (!topicStats[topicName]) topicStats[topicName] = { total: 0, count: 0 };
+            topicStats[topicName].total += (Number(r.score) || 0);
+            topicStats[topicName].count += 1;
           });
 
           const topics = Object.entries(topicStats).map(([topic, stats]) => ({
@@ -96,13 +117,14 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
             avgScore: stats.total / stats.count
           }));
 
+          // Define weak/strong based on thresholds
           const weakTopics = topics.filter(t => t.avgScore < 60).sort((a,b) => a.avgScore - b.avgScore);
           const strongTopics = topics.filter(t => t.avgScore >= 80).sort((a,b) => b.avgScore - a.avgScore);
 
           const studentAnalysis = data.slice(0, 10).map(r => ({
             name: r.studentName,
-            score: (r.score / r.totalQuestions) * 100,
-            status: (r.score / r.totalQuestions) * 100 > 70 ? 'متفوق' : 'يحتاج دعم'
+            score: Number(r.score) || 0,
+            status: (Number(r.score) || 0) > 70 ? 'متفوق' : 'يحتاج دعم'
           }));
 
           setInsights({
@@ -277,7 +299,12 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
                  <Lightbulb className="h-5 w-5" />
                </div>
                <div className="space-y-1">
-                  <p className="text-xs font-black text-slate-800 tracking-tight leading-relaxed">توصية الذكاء الاصطناعي: يفضل إعادة شرح درس "الميكانيكا" لوجود هبوط ملحوظ في درجات الطلاب الأسبوع الماضي.</p>
+                  <p className="text-xs font-black text-slate-800 tracking-tight leading-relaxed">
+                    توصية الذكاء الاصطناعي: 
+                    {insights.weakTopics.length > 0 
+                      ? ` يفضل التركيز على "${insights.weakTopics[0].topic}" لوجود تراجع في مستوى استيعاب الطلاب لهذا الموضوع.`
+                      : " أداء الطلاب ممتاز في جميع المواضيع حالياً! استمر في تحفيزهم."}
+                  </p>
                </div>
             </div>
           </CardContent>

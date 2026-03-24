@@ -39,6 +39,20 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
     return () => clearInterval(interval);
   }, [active, onViolation, showViolationUI]);
 
+  // 1.1 Resize Detection (Commonly triggered by screen recording overlays or DevTools)
+  useEffect(() => {
+    if (!active) return;
+    const handleResize = () => {
+      // Small resizes are ignored, but significant ones trigger alert
+      if (Math.abs(window.outerWidth - window.innerWidth) > 100 || Math.abs(window.outerHeight - window.innerHeight) > 100) {
+         // Potential recording overlay or DevTools
+         onViolation?.('تغيير في أبعاد الشاشة (قد يكون تسجيل شاشة)');
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [active, onViolation]);
+
   // 2. Block Shortcuts, Context Menu & Clipboard
   useEffect(() => {
     if (!active) return;
@@ -93,7 +107,7 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
         top: Math.floor(Math.random() * 80 + 10) + '%',
         left: Math.floor(Math.random() * 80 + 10) + '%',
       });
-    }, 10000);
+    }, 5000); // More frequent movement
     return () => clearInterval(interval);
   }, [active]);
 
@@ -135,7 +149,7 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
 
       {/* Floating Watermark */}
       <div
-        className="absolute z-[50] pointer-events-none transition-all duration-1000 ease-in-out whitespace-nowrap opacity-[0.08]"
+        className="absolute z-[50] pointer-events-none transition-all duration-1000 ease-in-out whitespace-nowrap opacity-[0.14]"
         style={{ top: watermarkPos.top, left: watermarkPos.left, transform: 'translate(-50%, -50%) rotate(-15deg)' }}
       >
         <div className="flex flex-col items-center">

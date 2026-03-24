@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ChevronLeft, ChevronRight, Play, FileText, GraduationCap, CheckCircle2, Lock, Layers, 
   Image as ImageIcon, Download, FileArchive, File as FileIcon, ExternalLink, AlertCircle, 
-  Eye, Upload, Send, Star, Clock, Trophy, Calendar
+  Eye, Upload, Send, Star, Clock, Trophy, Calendar, X
 } from 'lucide-react';
 import { VideoPlayer } from '../video/VideoPlayer';
 import { Button } from '../ui/Button';
@@ -18,8 +18,9 @@ import { useEducatorsAuth } from '../auth/AuthProvider';
 import { SecurityOverlay } from '../security/SecurityOverlay';
 import { LessonComments } from './LessonComments';
 import { uploadFileToSupabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
 
-const VIDEO_COMPLETION_THRESHOLD = 90; // % to consider video watched (Lowered for better reliability)
+const VIDEO_COMPLETION_THRESHOLD = 85; // % to consider video watched
 
 // ─── Homework Lesson View ───────────────────────────────────────────────────
 const HomeworkLessonView = ({ 
@@ -293,6 +294,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string>('');
   const [videoProgress, setVideoProgress] = useState<Record<string, number>>({}); // lessonId -> % watched
+  const [optimisticCompleted, setOptimisticCompleted] = useState<Set<string>>(new Set());
   const autoAdvanceRef = useRef(false);
 
   const allLessons = course?.sections?.flatMap((s: any) => s.lessons) || [];
@@ -316,12 +318,17 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
   };
 
   const markLessonCompleted = async (lessonId: string) => {
-    if (!profile?.uid || !enrollment || enrollment.completedLessons?.includes(lessonId)) return;
+    if (!profile?.uid || optimisticCompleted.has(lessonId)) return;
     
+    // Optimistic UI Update - Show checkmark instantly even during tests
+    setOptimisticCompleted(prev => new Set(prev).add(lessonId));
+
+    if (!enrollment || enrollment.completedLessons?.includes(lessonId)) return;
+
     try {
-      const { increment } = await import('firebase/firestore');
-      const updatedLessons = [...(enrollment.completedLessons || []), lessonId];
-      const progress = Math.round((updatedLessons.length / allLessons.length) * 100);
+      const { increment, arrayUnion } = await import('firebase/firestore');
+      const updatedLessonsCount = (enrollment.completedLessons?.length || 0) + 1;
+      const progress = Math.round((updatedLessonsCount / allLessons.length) * 100);
       
       const updateData: any = {
         completedLessons: arrayUnion(lessonId),
@@ -409,7 +416,10 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
 
   const handleRequestEnrollment = async () => {
     if (!profile?.uid) return;
-    setShowPaymentModal(true);
+    toast.loading('جاري تجهيز طلب الانضمام والاشتراك... ⏳', { duration: 2000 });
+    setTimeout(() => {
+      setShowPaymentModal(true);
+    }, 1000);
   };
 
   // Pre-fetch signed URLs for videos and images to avoid Vercel proxy issues while maintaining security
@@ -603,9 +613,9 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
             <div className="space-y-2">
               <h3 className="text-2xl font-black">هذا المحتوى مغلق 🔒</h3>
               {enrollment?.status === 'PENDING' ? (
-                <p className="text-slate-400 font-bold max-w-md mx-auto">طلبك قيد المراجعة من قبل المعلم. سيتم إخطارك فور الموافقة على اشتراكك في الكورس.</p>
+                <p className="text-slate-400 font-bold max-w-md mx-auto">طلبك قيد المراجعة. يرجى التأكد من دفع رسوم الكورس وإرسال الوصل للمعلم ليتم تفعيل الحساب فوراً.</p>
               ) : (
-                <p className="text-slate-400 font-bold max-w-md mx-auto">للوصول إلى دروس هذا الكورس والاختبارات، يجب الاشتراك أولاً والحصول على موافقة المعلم.</p>
+                <p className="text-slate-400 font-bold max-w-md mx-auto">للوصول إلى دروس هذا الكورس والاختبارات، يجب الاشتراك أولاً وإتمام عملية الدفع للحصول على موافقة المعلم.</p>
               )}
             </div>
             {enrollment?.status !== 'PENDING' && (
@@ -815,7 +825,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                       )}
                     >
                       <div className="shrink-0">
-                        {enrollment?.completedLessons?.includes(lesson.id) ? (
+                        {(enrollment?.completedLessons?.includes(lesson.id) || optimisticCompleted.has(lesson.id) || (lesson.type === 'VIDEO' && getVideoWatchPercent(lesson.id) >= VIDEO_COMPLETION_THRESHOLD)) ? (
                           <CheckCircle2 className="h-5 w-5 text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                         ) : isLocked ? (
                           <Lock className="h-5 w-5 text-white/30" />
@@ -836,7 +846,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           {lesson.duration && <p className="text-[10px] text-white/40 font-bold leading-none">{lesson.duration}</p>}
-                          {lesson.type === 'VIDEO' && getVideoWatchPercent(lesson.id) > 0 && !enrollment?.completedLessons?.includes(lesson.id) && (
+                          {lesson.type === 'VIDEO' && getVideoWatchPercent(lesson.id) > 0 && !enrollment?.completedLessons?.includes(lesson.id) && !optimisticCompleted.has(lesson.id) && (
                             <div className="flex items-center gap-1">
                               <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
                                 <div className="h-full bg-brand-primary rounded-full transition-all" style={{ width: `${getVideoWatchPercent(lesson.id)}%` }} />

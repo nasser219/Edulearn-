@@ -209,7 +209,6 @@ export const useSecurityDetection = (
     };
 
     const handleVisibility = () => {
-      if (IS_MOBILE) return;
       if (document.visibilityState === 'hidden' && !config?.disableTabSwitch) {
         fire('TAB_SWITCH');
       }

@@ -151,16 +151,26 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
       });
 
       // WhatsApp Redirection
-      let academyPhone = teacherPaymentInfo?.whatsapp || '201066708090'; // Placeholder - user can change this
+      let academyPhone = teacherPaymentInfo?.whatsapp || '201066708090'; 
       if (academyPhone.startsWith('0')) {
          academyPhone = '2' + academyPhone;
       }
-      const message = `السلام عليكم، قمت بتحويل مبلغ ${price} EGP للاشتراك في كورس ${courseTitle}. اسم الطالب: ${profile?.fullName}. رقم الهاتف: ${profile?.phone || profile?.fatherPhone || '---'}. مرفق صورة الوصل.`;
+      
+      const message = `*طلب اشتراك جديد - منصة التربويين* 🎓
+---------------------------
+*اسم الطالب:* ${profile?.fullName}
+*الكورس:* ${courseTitle}
+*المبلغ:* ${price} EGP
+*المرحلة/الصف:* ${profile?.stage || '--'} / ${profile?.grade || '--'}
+*رقم الطالب:* ${profile?.phone || '--'}
+
+السلام عليكم، لقد قمت بالتحويل المطلوب للاشتراك في الكورس. مرفق صورة الوصل للتأكيد. يرجى تفعيل الحساب. 🙏`;
+
       const waLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(message)}`;
       window.open(waLink, '_blank');
 
       setIsSuccess(true);
-      setTimeout(onConfirm, 3500); // Give them time to read the message
+      setTimeout(onConfirm, 4000); 
     } catch (error) {
        console.error("Manual Payment error:", error);
     } finally {
@@ -170,17 +180,24 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
 
   if (isSuccess) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center p-12 space-y-4 rounded-[3rem]">
-          <div className="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <Check className="h-10 w-10 text-green-600" />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" dir="rtl">
+        <Card className="w-full max-w-md text-center p-8 space-y-5 rounded-[2.5rem] shadow-2xl animate-in zoom-in duration-500">
+          <div className="h-20 w-20 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto shadow-xl shadow-green-100">
+            <Check className="h-10 w-10" />
           </div>
-          <h2 className="text-2xl font-black text-slate-800">تم الطلب بنجاح! 🎉</h2>
-          <p className="text-slate-500 font-bold leading-relaxed px-4">
-            {method === 'CARD' 
-              ? `تم فتح كورس "${courseTitle}" بنجاح.`
-              : "تم إرسال طلبك! يرجى إرسال الوصل وسوف يتم التأكيد وتفعيل الكورس على حسابك خلال ساعات. ستصلك ملحوظة على النظام فور التفعيل. 🙏"}
-          </p>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-slate-800">نشكرك يا {profile?.fullName.split(' ')[0]}! ❤️</h2>
+            <p className="text-sm text-slate-500 font-bold leading-relaxed">
+              {method === 'CARD' 
+                ? `تم فتح كورس "${courseTitle}" بنجاح. نتمنى لك رحلة ممتعة!`
+                : "تم استلام طلبك! بمجرد مراجعة تحويلك، سيظهر الكورس كـ 'مفتوح' تلقائياً. المراجعة تتم خلال دقائق بسيطة في أوقات العمل. 🙏"}
+            </p>
+          </div>
+          {method !== 'CARD' && (
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+              <p className="text-[10px] font-black text-amber-600">💡 تم فتح الواتساب للتواصل مع المعلم، يرجى إرسال الصورة هناك لسرعة التفعيل.</p>
+            </div>
+          )}
         </Card>
       </div>
     );
@@ -189,14 +206,14 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
   if (showInstructions) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" dir="rtl">
-        <Card className="w-full max-w-md overflow-hidden rounded-[3rem]">
-          <div className="p-8 bg-brand-primary text-white text-right">
-            <h2 className="text-2xl font-black">تعليمات الدفع عبر {method === 'INSTAPAY' ? 'InstaPay' : 'Vodafone Cash'}</h2>
-            <p className="text-white/80 text-sm font-bold mt-2">يرجى اتباع الخطوات التالية لإتمام العملية</p>
+        <Card className="w-full max-w-md overflow-hidden rounded-[2.5rem]">
+          <div className="p-6 bg-brand-primary text-white text-right">
+            <h2 className="text-xl font-black">تعليمات الدفع</h2>
+            <p className="text-white/80 text-[10px] font-bold mt-1">يرجى اتباع الخطوات التالية لإتمام العملية عبر {method === 'INSTAPAY' ? 'InstaPay' : 'Vodafone Cash'}</p>
           </div>
           
-          <CardContent className="p-8 space-y-6">
-            <div className="space-y-4">
+          <CardContent className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <div className="space-y-3">
                <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl">
                   <div className="h-8 w-8 bg-brand-primary text-white rounded-xl flex items-center justify-center shrink-0 font-black">1</div>
                   <div className="text-right">
@@ -231,9 +248,9 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
             </div>
           </CardContent>
 
-          <div className="p-8 bg-slate-50 flex gap-4">
-            <Button variant="ghost" className="flex-1 rounded-2xl font-black h-14" onClick={() => setShowInstructions(false)}>رجوع</Button>
-            <Button variant="primary" className="flex-2 rounded-2xl font-black h-14" isLoading={isProcessing} onClick={handleConfirmManual}>
+          <div className="p-6 bg-slate-50 flex gap-4 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 rounded-xl font-black h-12" onClick={() => setShowInstructions(false)}>رجوع</Button>
+            <Button variant="primary" className="flex-2 rounded-xl font-black h-12" isLoading={isProcessing} onClick={handleConfirmManual}>
               لقد قمت بالتحويل
             </Button>
           </div>
@@ -244,16 +261,16 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md rounded-[3rem] overflow-hidden shadow-2xl">
-        <div className="p-10 border-b border-slate-50 text-right">
-          <h2 className="text-2xl font-black text-slate-800">إتمام الشراء 💳</h2>
-          <p className="text-sm text-slate-400 font-bold mt-1">كورس: {courseTitle}</p>
+      <Card className="w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="p-6 border-b border-slate-50 text-right bg-white">
+          <h2 className="text-xl font-black text-slate-800">إتمام الشراء 💳</h2>
+          <p className="text-[10px] text-slate-400 font-bold mt-1">كورس: {courseTitle}</p>
         </div>
         
-        <CardContent className="p-10 space-y-8">
-          <div className="flex items-center justify-between p-6 bg-brand-primary/5 rounded-[2rem] border border-brand-primary/10">
-            <span className="text-lg font-black text-brand-primary">EGP {price}</span>
-            <span className="text-sm font-bold text-slate-500">إجمالي المبلغ</span>
+        <CardContent className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+          <div className="flex items-center justify-between p-4 bg-brand-primary/5 rounded-2xl border border-brand-primary/10">
+            <span className="text-base font-black text-brand-primary">EGP {price}</span>
+            <span className="text-xs font-bold text-slate-500">إجمالي المبلغ</span>
           </div>
 
           <div className="space-y-4">
@@ -268,19 +285,19 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
                 key={m.id}
                 onClick={() => setMethod(m.id)}
                 className={cn(
-                  "w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all group",
+                  "w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all group",
                   method === m.id ? "border-brand-primary bg-brand-primary/5 ring-4 ring-brand-primary/10" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"
                 )}
                 dir="rtl"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                    <div className={cn(
-                     "h-10 w-10 rounded-xl flex items-center justify-center transition-colors",
+                     "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
                      method === m.id ? "bg-brand-primary text-white" : "bg-slate-100 text-slate-400 group-hover:bg-slate-200"
                    )}>
-                      <m.icon className="h-5 w-5" />
+                      <m.icon className="h-4 w-4" />
                    </div>
-                   <span className={cn("text-base font-black transition-colors", method === m.id ? "text-brand-primary" : "text-slate-600")}>{m.label}</span>
+                   <span className={cn("text-sm font-black transition-colors", method === m.id ? "text-brand-primary" : "text-slate-600")}>{m.label}</span>
                 </div>
                 {method === m.id && <Check className="h-4 w-4 text-brand-primary" />}
               </button>
@@ -294,9 +311,9 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
           </div>
         </CardContent>
 
-        <div className="p-8 bg-slate-50/50 flex gap-4">
-          <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black text-slate-400" onClick={onCancel}>إلغاء</Button>
-          <Button variant="primary" className="flex-2 h-14 rounded-2xl font-black shadow-lg shadow-brand-primary/20" isLoading={isProcessing} onClick={handlePay}>
+        <div className="p-6 bg-slate-50/50 flex gap-4 border-t border-slate-100">
+          <Button variant="ghost" className="flex-1 h-12 rounded-xl font-black text-slate-400" onClick={onCancel}>إلغاء</Button>
+          <Button variant="primary" className="flex-2 h-12 rounded-xl font-black shadow-lg shadow-brand-primary/20" isLoading={isProcessing} onClick={handlePay}>
             تأكيد والدفع
           </Button>
         </div>

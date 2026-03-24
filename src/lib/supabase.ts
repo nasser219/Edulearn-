@@ -12,78 +12,43 @@ if (!supabase) {
   console.warn('⚠️ Supabase credentials missing. PDF uploads will be disabled.');
 }
 
-// Fixed bucket name — spaces in bucket names cause issues
-const BUCKET_NAME = 'pdf-edulearn';
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (matching server proxy)
 
 /**
- * Universal upload function for any file to Supabase.
- * Robust filename sanitization and bucket fallback.
+ * Universal upload function using server-side proxy.
+ * This resolves all "Bucket not found" and RLS issues by bypassing Supabase Storage.
  */
 export async function uploadFileToSupabase(file: File, folder: string = 'submissions'): Promise<string> {
-  if (!supabase) {
-    throw new Error('إعدادات Supabase غير مكتملة (supabaseUrl/supabaseAnonKey).');
-  }
-
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`حجم الملف (${(file.size / 1024 / 1024).toFixed(1)}MB) يتجاوز الحد المسموح (25MB).`);
+    throw new Error(`حجم الملف كبير جداً (${(file.size / 1024 / 1024).toFixed(1)}MB). الحد الأقصى هو 100MB.`);
   }
 
-  // Expanded list of common allowed types for homework/assignments
-  const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar'];
-  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
-  
-  // We don't block strictly here, but we warn in console
-  if (!allowedExtensions.includes(fileExt)) {
-    console.warn(`Uploading uncommon file extension: .${fileExt}`);
-  }
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
 
-  const timestamp = Date.now();
-  const randomStr = Math.random().toString(36).substring(2, 8);
-  // Sanitize filename to avoid bucket errors with Arabic/special chars
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 30);
-  const filePath = `${folder}/${timestamp}_${randomStr}_${safeName}`;
-
-  const { error } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: file.type || 'application/octet-stream',
+    const response = await fetch('/api/cloudinary/upload', {
+      method: 'POST',
+      body: formData,
     });
-  
-  if (error) {
-    console.error('Supabase upload error:', error);
-    
-    // Fallback logic if the primary bucket is missing
-    if (error.message?.includes('not found') || error.message?.includes('Bucket')) {
-      const { error: fallbackError } = await supabase.storage
-        .from('pdf edulearn')
-        .upload(filePath, file, {
-           cacheControl: '3600',
-           upsert: false,
-           contentType: file.type || 'application/octet-stream',
-        });
-      
-      if (fallbackError) {
-        throw new Error(`فشل الرفع: ${fallbackError.message}`);
-      }
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from('pdf edulearn')
-        .getPublicUrl(filePath);
-      
-      return publicUrl;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `فشل الرفع عبر السيرفر (${response.status})`);
     }
+
+    const data = await response.json();
     
-    throw new Error(`فشل الرفع: ${error.message}`);
+    if (!data.secure_url) {
+      throw new Error("لم يتم استلام رابط الملف من السيرفر.");
+    }
+
+    console.log("[STORAGE ROOT FIX] Upload success:", data.secure_url);
+    return data.secure_url;
+  } catch (error: any) {
+    console.error('Storage Proxy Error:', error);
+    throw new Error(`فشل الرفع من الجذور: ${error.message}`);
   }
-
-  const { data: { publicUrl } } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(filePath);
-
-  return publicUrl;
 }
 
 /**
