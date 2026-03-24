@@ -133,24 +133,42 @@ export const useScreenRecordingDetection = (
   useEffect(() => {
     if (!active) return;
 
-    // ── 1. Tab Visibility (Mobile & Desktop Blur) ──
-    // The most reliable way to catch mobile screen recording is when 
-    // the user swipes control center or switches apps, hiding the tab.
+    // ── 1. Aggressive Focus & Visibility Tracking (Mobile & Desktop Blur) ──
+    // Floating screen recorders, Control Center (Swipe down), and App switchers 
+    // all steal focus from the browser. This is our primary defense on mobile web.
+    let blurDelayTimeout: ReturnType<typeof setTimeout>;
+
+    const handleFocusLoss = () => {
+      onRecordingStart();
+    };
+
+    const handleFocusGain = () => {
+      clearTimeout(blurDelayTimeout);
+      // Delay unblur to ensure the system animation is fully finished
+      blurDelayTimeout = setTimeout(() => {
+        // Do not stop blur if a real desktop screen share is active
+        if (!streamRef.current?.active) {
+          onRecordingStop();
+        }
+      }, 1000);
+    };
+
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        onRecordingStart();
-      } else {
-        // Delay unblur to ensure system animations finish (no quick snapshots)
-        setTimeout(() => {
-          // Do not stop blur if a real desktop screen share is active
-          if (!streamRef.current?.active) {
-            onRecordingStop();
-          }
-        }, 1000);
-      }
+      if (document.visibilityState === 'hidden') handleFocusLoss();
+      else handleFocusGain();
     };
     
+    window.addEventListener('blur', handleFocusLoss);
+    window.addEventListener('focus', handleFocusGain);
     document.addEventListener('visibilitychange', handleVisibility);
+
+    // Stealth polling fallback: Some Android floating widgets don't fire window 'blur' reliably,
+    // but they cause document.hasFocus() to return false.
+    const focusPoll = setInterval(() => {
+      if (!document.hasFocus() || document.visibilityState === 'hidden') {
+        handleFocusLoss();
+      }
+    }, 800);
 
     // ── 2. Desktop Screen Share Proxy ──
     if (navigator.mediaDevices?.getDisplayMedia && !hasProxied.current) {
@@ -179,7 +197,11 @@ export const useScreenRecordingDetection = (
     }
 
     return () => {
+      window.removeEventListener('blur', handleFocusLoss);
+      window.removeEventListener('focus', handleFocusGain);
       document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(focusPoll);
+      clearTimeout(blurDelayTimeout);
       
       if (hasProxied.current) {
         hasProxied.current = false;
