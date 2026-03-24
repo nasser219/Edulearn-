@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { ShieldCheck, MonitorOff, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, CheckCircle2, MonitorOff } from 'lucide-react';
 import {
   useScreenRecordingDetection,
   logSecurityEvent,
@@ -10,7 +10,7 @@ import { Button } from '../ui/Button';
 // Constants
 // ─────────────────────────────────────────────
 const BUNNY_LIBRARY_ID = '618859';
-const COMPLETION_THRESHOLD = 85; // % to consider video "watched"
+const COMPLETION_THRESHOLD = 80; // % to consider video watched (Lowered for maximum reliability)
 
 interface VideoPlayerProps {
   src: string;
@@ -37,7 +37,7 @@ const drawWatermark = (canvas: HTMLCanvasElement, text: string, time: number) =>
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, w, h);
   ctx.save();
-  ctx.globalAlpha = 0.18; // Slightly more visible
+  ctx.globalAlpha = 0.18;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
   ctx.shadowBlur = 4;
@@ -64,15 +64,14 @@ const drawWatermark = (canvas: HTMLCanvasElement, text: string, time: number) =>
 // ─────────────────────────────────────────────
 // Bunny embed URLs
 // ─────────────────────────────────────────────
-const buildBunnyUrl = (src: string, muted: boolean) => [
+const buildBunnyUrl = (src: string, isSecured: boolean) => [
   `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${src}`,
   `?autoplay=false`,
   `&preload=false`,
   `&responsive=true`,
   `&letterbox=false`,
   `&controls=true`,
-  `&muted=${muted}`,
-  // Disable forward seeking — only allow watched content
+  `&muted=${isSecured}`,
   `&showHeatmap=false`,
 ].join('');
 
@@ -93,65 +92,62 @@ export const VideoPlayer = ({
 
   const [isRecording, setIsRecording] = useState(false);
   const [iframeUrl, setIframeUrl] = useState(buildBunnyUrl(src, false));
-  
+
   // ── Progress tracking ──
   const [watchedPercent, setWatchedPercent] = useState(initialProgress);
   const [isCompleted, setIsCompleted] = useState(initialProgress >= COMPLETION_THRESHOLD);
-  const maxWatchedRef = useRef<number>(initialProgress); // highest % watched so far
+  const maxWatchedRef = useRef<number>(initialProgress);
   const hasCalledEndedRef = useRef(false);
   const activityStartTime = useRef<number>(Date.now());
 
   const watermarkText = `${studentName} · ${studentPhone}`;
 
-  // ── Switch iframe URL to muted/unmuted ──
+  // ── Sync iframe URL to detection state ──
   useEffect(() => {
     setIframeUrl(buildBunnyUrl(src, isRecording));
   }, [isRecording, src]);
 
-  // Fallback: If student has been on the video for > 45s, and it's still not "completing",
-  // we can assume events might be failing and allow them to finish.
+  // ── Fallback Progress ──
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isCompleted && !hasCalledEndedRef.current) {
         const timeElapsed = (Date.now() - activityStartTime.current) / 1000;
         if (timeElapsed > 45 && watchedPercent < 10) {
-           setWatchedPercent(prev => Math.max(prev, 15));
+          setWatchedPercent(prev => Math.max(prev, 15));
         }
       }
     }, 5000);
     return () => clearInterval(interval);
   }, [isCompleted, watchedPercent]);
 
-  // ── Listen to Bunny.net iframe postMessage events ──
+  // ── Event Listener for Bunny ──
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Broaden origin check
       const origin = event.origin.toLowerCase();
       if (!origin.includes('mediadelivery.net') && !origin.includes('bunny') && !origin.includes('vid')) return;
-      
+
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         const eventName = (data.event || data.name || '').toLowerCase();
 
-        // Standard Bunny/VidPlayer events
         if (eventName.includes('progress') || eventName.includes('time') || eventName === 'play') {
           const currentTime = data.data?.currentTime || data.currentTime || data.time || 0;
           const duration = data.data?.duration || data.duration || 1;
           const percent = Math.round((currentTime / duration) * 100);
-          
+
           if (percent > 0) {
             if (percent > maxWatchedRef.current) maxWatchedRef.current = percent;
             setWatchedPercent(percent);
             onProgress?.(percent);
           }
-          
+
           if (percent >= COMPLETION_THRESHOLD && !hasCalledEndedRef.current) {
             hasCalledEndedRef.current = true;
             setIsCompleted(true);
             onEnded?.();
           }
         }
-        
+
         if (eventName.includes('end')) {
           setWatchedPercent(100);
           onProgress?.(100);
@@ -161,16 +157,14 @@ export const VideoPlayer = ({
             onEnded?.();
           }
         }
-      } catch (e) {
-        // Silent
-      }
+      } catch (e) { }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [onEnded, onProgress, isCompleted]);
 
-  // ── Watermark ──
+  // ── Watermark Rendering ──
   const renderWatermark = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (canvas) drawWatermark(canvas, watermarkText, time);
@@ -192,7 +186,7 @@ export const VideoPlayer = ({
     return () => obs.disconnect();
   }, [watermarkText]);
 
-  // ── Screen recording detection ──
+  // ── Recording Detection ──
   const handleRecordingStart = useCallback(() => {
     setIsRecording(true);
     logSecurityEvent('SCREEN_RECORDING', { studentName, studentPhone });
@@ -204,49 +198,14 @@ export const VideoPlayer = ({
 
   useScreenRecordingDetection(handleRecordingStart, handleRecordingStop, true);
 
-  // ── Tab visibility — pause video when tab is hidden ──
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden' && !isCompleted) {
-        // Send pause command to Bunny iframe
-        iframeRef.current?.contentWindow?.postMessage(
-          JSON.stringify({ event: 'pause' }),
-          '*'
-        );
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isCompleted]);
-
-  // ── Screenshot blocking CSS ──
-  useEffect(() => {
-    // Add screenshot protection styles
-    const style = document.createElement('style');
-    style.id = 'video-protection-css';
-    style.textContent = `
-      @media print {
-        .video-protected-container { display: none !important; }
-        body::after { content: "طباعة المحتوى محظورة" !important; display: block; font-size: 3rem; text-align: center; padding: 4rem; }
-      }
-    `;
-    if (!document.getElementById('video-protection-css')) {
-      document.head.appendChild(style);
-    }
-    return () => {
-      const el = document.getElementById('video-protection-css');
-      el?.remove();
-    };
-  }, []);
-
+  // ── Cleanup Overlay UI ──
   return (
     <div
       className="video-protected-container relative w-full bg-black rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl mx-auto select-none"
-      style={{ paddingBottom: '56.25%', height: 0, WebkitUserSelect: 'none', userSelect: 'none' }}
+      style={{ paddingBottom: '56.25%', height: 0 }}
       onDragStart={(e) => e.preventDefault()}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ── Bunny iframe ── */}
       <iframe
         ref={iframeRef}
         key={iframeUrl}
@@ -255,7 +214,7 @@ export const VideoPlayer = ({
         style={{
           top: 0,
           left: 0,
-          filter: isRecording ? 'blur(50px) brightness(0.05)' : 'none',
+          filter: isRecording ? 'blur(50px) brightness(0.1)' : 'none',
           transition: 'filter 0.3s ease',
         }}
         allowFullScreen
@@ -265,16 +224,12 @@ export const VideoPlayer = ({
         scrolling="no"
       />
 
-      {/* ── Canvas watermark ── */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 pointer-events-none z-[25]"
         style={{ top: 0, left: 0, width: '100%', height: '100%' }}
       />
 
-
-
-      {/* ── Corner badge ── */}
       {!isRecording && (
         <div className="absolute bottom-12 right-3 z-[30] pointer-events-none">
           <div className="bg-black/25 backdrop-blur-sm px-2 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
@@ -286,39 +241,27 @@ export const VideoPlayer = ({
         </div>
       )}
 
-      {/* ── Recording Warning Overlay ── */}
+      {/* Recording Warning Overlay - Al-Tarbawiyeen Premium Design */}
       {isRecording && (
-        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-6 text-center">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 rounded-full bg-red-500/30 animate-ping scale-150" />
-            <div className="h-16 w-16 md:h-20 md:w-20 bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl relative z-10">
-              <MonitorOff className="h-8 w-8 md:h-10 md:w-10" />
-            </div>
+        <div className="absolute inset-0 z-[100] bg-slate-900/90 backdrop-blur-[32px] flex flex-col items-center justify-center text-white text-center p-8 transition-all animate-in fade-in zoom-in duration-500">
+          <div className="h-24 w-24 bg-white/5 border-2 border-white/20 rounded-full flex items-center justify-center mb-6 shadow-2xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-red-500/10 group-hover:bg-red-500/20 transition-colors animate-pulse" />
+            <ShieldAlert className="h-12 w-12 text-white relative z-10" />
           </div>
-
-          <div className="bg-slate-900/95 backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-sm border border-red-500/30 shadow-2xl">
-            <h2 className="text-xl md:text-2xl font-black text-white mb-3">
-              🚫 تسجيل الشاشة محظور
-            </h2>
-            <p className="text-slate-400 font-bold text-sm mb-5 leading-relaxed">
-              تم رصد تسجيل الشاشة.<br />
-              تم إيقاف الفيديو وكتم الصوت تلقائياً.
-            </p>
-            <div className="mb-5 px-4 py-2.5 bg-red-900/40 border border-red-700/30 rounded-2xl">
-              <p className="text-[11px] font-black text-red-400 tracking-wider">
-                تم التوثيق باسم: {studentName}
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsRecording(false)}
-              className="w-full bg-brand-primary h-12 rounded-2xl text-white font-black shadow-lg border-none"
-            >
-              أوقفت التسجيل — استمر في المشاهدة
-            </Button>
-            <p className="text-[10px] text-slate-600 font-bold mt-4">
-              {studentPhone} · تم الحفظ في سجلات الأمان
-            </p>
-          </div>
+          <h3 className="text-2xl font-black mb-2 tracking-tight">تنبيه أمني: المحتوى محمي 🛡️</h3>
+          <p className="font-bold text-white/60 mb-8 max-w-xs leading-relaxed text-sm">
+            تم رصد محاولة لتصوير الشاشة أو تسجيل فيديو.
+            يرجى إغلاق كافة برامج التسجيل والعودة للمشاهدة.
+          </p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="px-12 h-14 bg-white text-slate-900 rounded-2xl font-black text-lg hover:bg-slate-100 transition-all shadow-2xl shadow-white/5 active:scale-95 border-none"
+          >
+            إغلاق وتحديث الصفحة 🔄
+          </Button>
+          <p className="text-[10px] text-white/30 font-bold mt-6">
+            ID: {studentPhone} · تم توثيق المحاولة
+          </p>
         </div>
       )}
 

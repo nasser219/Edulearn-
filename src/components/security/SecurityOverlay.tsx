@@ -134,27 +134,28 @@ export const SecurityOverlay = ({ children, active = true, onViolation, showViol
         {children}
       </div>
 
-      {/* Violation Overlay */}
+      {/* Violation Overlay - Al-Tarbawiyeen Design */}
       {!isFocused && showViolationUI && (
-        <div className="absolute inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xl flex flex-col items-center justify-center text-white text-center p-8 animate-in fade-in duration-300">
-          <div className="bg-red-500/20 p-6 rounded-full border border-red-500/30 mb-6 animate-pulse">
-            <Shield className="h-16 w-16 text-red-400" />
+        <div className="absolute inset-0 z-[9999] bg-slate-900/85 backdrop-blur-[32px] flex flex-col items-center justify-center text-white text-center p-8 animate-in fade-in duration-500">
+          <div className="h-20 w-20 bg-white/5 border-2 border-white/20 rounded-full flex items-center justify-center mb-6 shadow-2xl">
+            <Shield className="h-10 w-10 text-white" />
           </div>
-          <h2 className="text-3xl font-black mb-4">تم اكتشاف مخالفة! 🚨</h2>
-          <p className="text-slate-200 font-bold max-w-md leading-relaxed">
-            تم رصد مغادرة صفحة الاختبار. جاري إنهاء الاختبار وإرسال النتيجة للمعلم...
+          <h2 className="text-2xl font-black mb-2 tracking-tight">المحتوى محمي 🛡️</h2>
+          <p className="text-white/60 font-bold max-w-xs leading-relaxed text-sm">
+            تم اكتشاف محاولة تصوير الشاشة أو الخروج من الصفحة. يرجى العودة للمتابعة.
           </p>
         </div>
       )}
 
       {/* Floating Watermark */}
       <div
-        className="absolute z-[50] pointer-events-none transition-all duration-1000 ease-in-out whitespace-nowrap opacity-[0.14]"
+        className="absolute z-[50] pointer-events-none transition-all duration-2000 ease-in-out whitespace-nowrap opacity-[0.14]"
         style={{ top: watermarkPos.top, left: watermarkPos.left, transform: 'translate(-50%, -50%) rotate(-15deg)' }}
       >
-        <div className="flex flex-col items-center">
-          <p className="text-xs font-black tracking-widest">{profile?.fullName}</p>
-          <p className="text-[10px] font-bold mt-1 text-slate-500">{profile?.phone || profile?.email}</p>
+        <div className="flex flex-col items-center text-center">
+          <p className="text-[14px] font-black tracking-tight text-white drop-shadow-lg">{profile?.fullName}</p>
+          <p className="text-[11px] font-bold mt-0.5 text-white/70">{profile?.phone || profile?.email}</p>
+          <p className="text-[10px] font-medium mt-0.5 text-white/50 tracking-widest">{profile?.uid?.slice(0, 8)} · {new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
 
