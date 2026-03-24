@@ -370,6 +370,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
 
   useEffect(() => {
     if (currentLesson && enrollment) {
+      autoAdvanceRef.current = false; // Reset completion tracker for the new lesson
       logActivity('VIEWED_LESSON', { lessonId: currentLesson.id, lessonTitle: currentLesson.title });
 
       const isStaticContent = ['PDF', 'IMAGE', 'HOMEWORK'].includes(currentLesson.type) ||
@@ -726,6 +727,45 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
             <Button variant="outline" size="sm" disabled={activeLessonIdx === 0} onClick={() => setActiveLessonIdx(v => v - 1)}>
               <ChevronLeft className="h-4 w-4 mr-1" /> السابق
             </Button>
+
+            {currentLesson?.type === 'VIDEO' && !enrollment?.completedLessons?.includes(currentLesson.id) && !optimisticCompleted.has(currentLesson.id) && (
+              <Button 
+                variant="primary" 
+                size="sm" 
+                disabled={getVideoWatchPercent(currentLesson.id) < VIDEO_COMPLETION_THRESHOLD}
+                onClick={() => markLessonCompleted(currentLesson.id)}
+                className={`transition-all font-black text-xs ${
+                  getVideoWatchPercent(currentLesson.id) >= VIDEO_COMPLETION_THRESHOLD 
+                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-200 animate-pulse' 
+                    : 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed hidden md:flex min-w-[140px] justify-center'
+                }`}
+              >
+                {getVideoWatchPercent(currentLesson.id) >= VIDEO_COMPLETION_THRESHOLD 
+                  ? 'تأكيد إكمال الدرس ✅' 
+                  : `شاهد ${VIDEO_COMPLETION_THRESHOLD}% للتأكيد (${getVideoWatchPercent(currentLesson.id)}%)`}
+              </Button>
+            )}
+
+            {currentLesson && (enrollment?.completedLessons?.includes(currentLesson.id) || optimisticCompleted.has(currentLesson.id)) && (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (activeLessonIdx < allLessons.length - 1) {
+                    setActiveLessonIdx(v => v + 1);
+                  }
+                }}
+                className={`hidden md:flex px-3 py-1.5 rounded-lg items-center justify-center gap-1.5 text-xs font-black shadow-sm transition-all border ${
+                  activeLessonIdx < allLessons.length - 1 
+                    ? 'bg-green-500 hover:bg-green-600 text-white border-green-600 shadow-green-200 animate-in fade-in zoom-in duration-300' 
+                    : 'bg-green-50 text-green-600 border-green-200'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> 
+                {activeLessonIdx < allLessons.length - 1 ? 'مكتمل - الدرس التالي ⏭️' : 'مكتمل'}
+              </Button>
+            )}
+
             <Button variant="outline" size="sm" disabled={activeLessonIdx === allLessons.length - 1} onClick={() => setActiveLessonIdx(v => v + 1)}>
               التالي <ChevronRight className="h-4 w-4 ml-1" />
             </Button>

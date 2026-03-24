@@ -139,6 +139,8 @@ export const useScreenRecordingDetection = (
     let blurDelayTimeout: ReturnType<typeof setTimeout>;
 
     const handleFocusLoss = () => {
+      // Ignore focus loss if the user just clicked inside the video player (iframe)
+      if (document.activeElement?.tagName === 'IFRAME') return;
       onRecordingStart();
     };
 
@@ -154,8 +156,12 @@ export const useScreenRecordingDetection = (
     };
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') handleFocusLoss();
-      else handleFocusGain();
+      // If visibility is entirely hidden, definitely trigger protection
+      if (document.visibilityState === 'hidden') {
+        onRecordingStart();
+      } else {
+        handleFocusGain();
+      }
     };
     
     window.addEventListener('blur', handleFocusLoss);
@@ -165,7 +171,12 @@ export const useScreenRecordingDetection = (
     // Stealth polling fallback: Some Android floating widgets don't fire window 'blur' reliably,
     // but they cause document.hasFocus() to return false.
     const focusPoll = setInterval(() => {
-      if (!document.hasFocus() || document.visibilityState === 'hidden') {
+      if (document.visibilityState === 'hidden') {
+        onRecordingStart();
+        return;
+      }
+      // If focus is gone but activeElement IS an iframe, it means the video is focused, which is safe.
+      if (!document.hasFocus() && document.activeElement?.tagName !== 'IFRAME') {
         handleFocusLoss();
       }
     }, 800);

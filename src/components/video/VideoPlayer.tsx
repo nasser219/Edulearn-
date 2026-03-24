@@ -199,6 +199,8 @@ export const VideoPlayer = ({
   useScreenRecordingDetection(handleRecordingStart, handleRecordingStop, true);
 
   // ── Cleanup Overlay UI ──
+  const isDirectUrl = src.startsWith('http') || src.startsWith('/');
+
   return (
     <div
       className="video-protected-container relative w-full bg-black rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl mx-auto select-none"
@@ -206,23 +208,66 @@ export const VideoPlayer = ({
       onDragStart={(e) => e.preventDefault()}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <iframe
-        ref={iframeRef}
-        key={iframeUrl}
-        src={iframeUrl}
-        className="absolute inset-0 w-full h-full border-0"
-        style={{
-          top: 0,
-          left: 0,
-          filter: isRecording ? 'blur(50px) brightness(0.1)' : 'none',
-          transition: 'filter 0.3s ease',
-        }}
-        allowFullScreen
-        allow="accelerometer; gyroscope; autoplay; encrypted-media; fullscreen; clipboard-write; web-share"
-        referrerPolicy="strict-origin-when-cross-origin"
-        title={`lesson-${src}`}
-        scrolling="no"
-      />
+      {isDirectUrl ? (
+        <video
+          src={src}
+          controls
+          controlsList="nodownload"
+          onContextMenu={(e) => e.preventDefault()}
+          playsInline
+          className="absolute inset-0 w-full h-full object-contain z-[10]"
+          style={{
+            top: 0,
+            left: 0,
+            filter: isRecording ? 'blur(50px) brightness(0.1)' : 'none',
+            transition: 'filter 0.3s ease',
+          }}
+          onTimeUpdate={(e) => {
+            const vid = e.currentTarget;
+            if (vid.duration) {
+              const percent = Math.round((vid.currentTime / vid.duration) * 100);
+              if (percent > 0) {
+                if (percent > maxWatchedRef.current) maxWatchedRef.current = percent;
+                setWatchedPercent(percent);
+                onProgress?.(percent);
+
+                if (percent >= COMPLETION_THRESHOLD && !hasCalledEndedRef.current) {
+                  hasCalledEndedRef.current = true;
+                  setIsCompleted(true);
+                  onEnded?.();
+                }
+              }
+            }
+          }}
+          onEnded={() => {
+            setWatchedPercent(100);
+            onProgress?.(100);
+            if (!hasCalledEndedRef.current) {
+              hasCalledEndedRef.current = true;
+              setIsCompleted(true);
+              onEnded?.();
+            }
+          }}
+        />
+      ) : (
+        <iframe
+          ref={iframeRef}
+          key={iframeUrl}
+          src={iframeUrl}
+          className="absolute inset-0 w-full h-full border-0 z-[10]"
+          style={{
+            top: 0,
+            left: 0,
+            filter: isRecording ? 'blur(50px) brightness(0.1)' : 'none',
+            transition: 'filter 0.3s ease',
+          }}
+          allowFullScreen
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; fullscreen; clipboard-write; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          title={`lesson-${src}`}
+          scrolling="no"
+        />
+      )}
 
       <canvas
         ref={canvasRef}
