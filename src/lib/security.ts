@@ -131,45 +131,63 @@ export const useScreenRecordingDetection = (
   const hasProxied = useRef(false);
 
   useEffect(() => {
-    // Guard: not supported (mobile Safari, old browsers)
     if (!active) return;
-    if (!navigator.mediaDevices?.getDisplayMedia) return;
-    if (hasProxied.current) return;
 
-    hasProxied.current = true;
-    originalGDM.current = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
-
-    // ── Proxy: only fires when user intentionally starts sharing ──
-    navigator.mediaDevices.getDisplayMedia = async (options?: DisplayMediaStreamOptions) => {
-      // At this point the user deliberately initiated screen share
-      onRecordingStart();
-
-      try {
-        const stream = await originalGDM.current!(options);
-        streamRef.current = stream;
-
-        // Detect when they stop sharing
-        stream.getVideoTracks().forEach(track => {
-          track.addEventListener('ended', () => {
-            streamRef.current = null;
+    // ── 1. Tab Visibility (Mobile & Desktop Blur) ──
+    // The most reliable way to catch mobile screen recording is when 
+    // the user swipes control center or switches apps, hiding the tab.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        onRecordingStart();
+      } else {
+        // Delay unblur to ensure system animations finish (no quick snapshots)
+        setTimeout(() => {
+          // Do not stop blur if a real desktop screen share is active
+          if (!streamRef.current?.active) {
             onRecordingStop();
-          });
-        });
-
-        return stream;
-      } catch {
-        // User cancelled or browser denied — stop blur
-        onRecordingStop();
-        throw new DOMException('Screen recording is not allowed.', 'NotAllowedError');
+          }
+        }, 1000);
       }
     };
+    
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // ── 2. Desktop Screen Share Proxy ──
+    if (navigator.mediaDevices?.getDisplayMedia && !hasProxied.current) {
+      hasProxied.current = true;
+      originalGDM.current = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+
+      navigator.mediaDevices.getDisplayMedia = async (options?: DisplayMediaStreamOptions) => {
+        onRecordingStart();
+        try {
+          const stream = await originalGDM.current!(options);
+          streamRef.current = stream;
+
+          stream.getVideoTracks().forEach(track => {
+            track.addEventListener('ended', () => {
+              streamRef.current = null;
+              onRecordingStop();
+            });
+          });
+
+          return stream;
+        } catch {
+          onRecordingStop();
+          throw new DOMException('Screen recording is not allowed.', 'NotAllowedError');
+        }
+      };
+    }
 
     return () => {
-      hasProxied.current = false;
-      if (originalGDM.current && navigator.mediaDevices?.getDisplayMedia) {
-        navigator.mediaDevices.getDisplayMedia = originalGDM.current;
+      document.removeEventListener('visibilitychange', handleVisibility);
+      
+      if (hasProxied.current) {
+        hasProxied.current = false;
+        if (originalGDM.current && navigator.mediaDevices?.getDisplayMedia) {
+          navigator.mediaDevices.getDisplayMedia = originalGDM.current;
+        }
+        streamRef.current?.getTracks().forEach(t => t.stop());
       }
-      streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, [active, onRecordingStart, onRecordingStop]);
 };
