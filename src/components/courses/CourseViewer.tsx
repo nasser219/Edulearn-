@@ -538,10 +538,11 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
     // 3) لو فيه درس بعده، انتقل إليه تلقائياً بعد ثانية ونص
     if (nextLesson) {
       autoAdvanceRef.current = true;
+      toast.success('جارِ الانتقال للدرس التالي...', { duration: 2500, icon: '⏭️' });
       setTimeout(() => {
         setActiveLessonIdx(currentGlobalIdx + 1);
         autoAdvanceRef.current = false;
-      }, 1500);
+      }, 2500);
     }
   }, [currentLesson, allLessons]);
 
