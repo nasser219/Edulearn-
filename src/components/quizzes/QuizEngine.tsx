@@ -196,8 +196,6 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
       
       const updatePromises = oldPermissions.docs.map(d => updateDoc(d.ref, { allowRetake: false }));
       await Promise.all(updatePromises);
-
-      setAnswers({});
       onComplete?.(percentage);
     } catch (error) {
       console.error("Error saving quiz result:", error);
@@ -386,30 +384,31 @@ export const QuizEngine = ({ quizId, onBack, onComplete }: {
                                   isEssay ? "text-slate-600" :
                                     isCorrect ? "text-emerald-700" : "text-red-700 font-black"
                                 )}>
-                                {answers[q.id] || '(لم يتم الإجابة)'}
-                              </span>
-                              {!isEssay && (
-                                <span className={cn(
-                                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black",
-                                  isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                                )}>
-                                  {isCorrect ? (
-                                    <>
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      إجابة صحيحة
-                                    </>
-                                  ) : (
-                                    <>
-                                      <XCircle className="h-3 w-3" />
-                                      إجابة خاطئة
-                                    </>
-                                  )}
+                                  {answers[q.id] || '(لم يتم الإجابة)'}
                                 </span>
-                              )}
-                            </p>
+                                {!isEssay && (
+                                  <span className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black",
+                                    isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                                  )}>
+                                    {isCorrect ? (
+                                      <>
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        صحيحة ✅
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle className="h-3 w-3" />
+                                        خاطئة ❌
+                                      </>
+                                    )}
+                                  </span>
+                                )}
+                              </p>
                               {!isCorrect && !isEssay && (
                                 <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                                  <span className="text-slate-400">الإجابة الصحيحة:</span>{q.correctAnswer}
+                                  <span className="text-slate-400">الإجابة الصحيحة:</span>
+                                  <span className="text-emerald-700">{q.correctAnswer}</span>
                                 </p>
                               )}
                             </div>

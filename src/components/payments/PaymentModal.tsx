@@ -62,7 +62,7 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
         teacherId, // Added teacherId
         amount: price,
         method,
-        status: 'COMPLETED',
+        status: 'PENDING',
         createdAt: serverTimestamp(),
         invoice: `#INV-${Math.floor(Math.random() * 9000) + 1000}`
       });
@@ -71,7 +71,7 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
       await createNotification({
         userId: teacherId,
         title: 'طلب انضمام جديد (بطاقة) 💳',
-        message: `قام الطالب ${profile?.fullName} بدفع رسوم الكورس "${courseTitle}" عبر البطاقة.`,
+        message: `قام الطالب ${profile?.fullName} بعملية دفع عبر البطاقة لكورس "${courseTitle}" (بانتظار التأكيد).`,
         type: 'ENROLLMENT',
         link: 'PAYMENTS'
       });
@@ -189,7 +189,7 @@ export const PaymentModal = ({ courseId, courseTitle, price, teacherId, onConfir
             <h2 className="text-2xl font-black text-slate-800">نشكرك يا {profile?.fullName.split(' ')[0]}! ❤️</h2>
             <p className="text-sm text-slate-500 font-bold leading-relaxed">
               {method === 'CARD' 
-                ? `تم فتح كورس "${courseTitle}" بنجاح. نتمنى لك رحلة ممتعة!`
+                ? `تم استلام عملية الدفع بنجاح! بمجرد تأكيد المعلم للاشتراك، سيفتح الكورس تلقائياً. 🙏`
                 : "تم استلام طلبك! بمجرد مراجعة تحويلك، سيظهر الكورس كـ 'مفتوح' تلقائياً. المراجعة تتم خلال دقائق بسيطة في أوقات العمل. 🙏"}
             </p>
           </div>

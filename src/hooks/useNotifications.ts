@@ -99,13 +99,28 @@ export const useNotifications = () => {
     }
   };
 
+  const deleteAllNotifications = async () => {
+    if (!user?.uid || notifications.length === 0) return;
+
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach(n => {
+        batch.delete(doc(db, 'notifications', n.id));
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error("Error deleting all notifications:", error);
+    }
+  };
+
   return {
     notifications,
     unreadCount,
     loading,
     markAsRead,
     markAllAsRead,
-    deleteNotification
+    deleteNotification,
+    deleteAllNotifications
   };
 };
 

@@ -7,9 +7,10 @@ import { Button } from '../ui/Button';
 import { Card, CardHeader, CardContent } from '../ui/Card';
 import { cn } from '../../lib/utils';
 import { useEducatorsAuth } from '../auth/AuthProvider';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, addDoc, deleteDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, addDoc, deleteDoc, getDocs, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { uploadFileToSupabase } from '../../lib/supabase';
+import { STAGES, GRADES, getStageLabel, getGradeLabel } from '../../lib/constants';
 
 // ─── Types ───
 interface HomeworkItem {
@@ -58,7 +59,14 @@ export const Homework = () => {
   const [showSubmitModal, setShowSubmitModal] = useState<string | null>(null); // homeworkId
   const [showGradeModal, setShowGradeModal] = useState<string | null>(null); // homeworkId
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
+  const [allSubmissions, setAllSubmissions] = useState<SubmissionItem[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Record<string, SubmissionItem>>({}); // homeworkId -> submission
+
+  // Advanced filters state
+  const [filterStage, setFilterStage] = useState('ALL');
+  const [filterGrade, setFilterGrade] = useState('ALL');
+  const [filterCourseId, setFilterCourseId] = useState('ALL');
+  const [filterSubmissionStatus, setFilterSubmissionStatus] = useState('ALL'); // ALL, PENDING, COMPLETED, NO_SUBMISSIONS
 
   // Create form state
   const [formTitle, setFormTitle] = useState('');
@@ -125,11 +133,21 @@ export const Homework = () => {
       });
     }
 
+    // Fetch all submissions for teacher's homeworks
+    let unsubscribeAllSubs = () => {};
+    if ((isTeacher() || isAdmin()) && profile?.uid) {
+      const sq = query(collection(db, 'homework_submissions'), orderBy('submittedAt', 'desc'));
+      unsubscribeAllSubs = onSnapshot(sq, (snap) => {
+        setAllSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() as any })));
+      });
+    }
+
     return () => {
       unsubscribeHW();
       unsubscribeCourses();
       unsubscribeEnrollments();
       unsubscribeSubs();
+      unsubscribeAllSubs();
     };
   }, [profile, isStudent, isTeacher, isAdmin]);
 
@@ -141,22 +159,62 @@ export const Homework = () => {
   }, [showCreateModal, profile?.subject]);
 
   // Stats
+  const teacherHwIds = homeworks.filter(hw => isAdmin() || isTeacher() ? hw.teacherId === profile?.uid : true).map(h => h.id);
+  
   const activeCount = homeworks.filter(hw => hw.status === 'ACTIVE' && (isAdmin() || isTeacher() ? hw.teacherId === profile?.uid : true)).length;
-  const pendingGrading = Object.values(mySubmissions).filter(s => s.grade === undefined || s.grade === null).length;
-  const totalCount = homeworks.filter(hw => isAdmin() || isTeacher() ? hw.teacherId === profile?.uid : true).length;
+  
+  const pendingGrading = (isTeacher() || isAdmin()) 
+    ? allSubmissions.filter(s => teacherHwIds.includes(s.homeworkId) && (s.grade === undefined || s.grade === null)).length
+    : Object.values(mySubmissions).filter(s => s.grade === undefined || s.grade === null).length;
+    
+  const totalCount = teacherHwIds.length;
 
   const filteredHomework = homeworks.filter(hw => {
+    // Basic search
     const matchesSearch = hw.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          hw.subject?.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
 
-    if (isAdmin()) return true;
-    if (isTeacher()) return hw.teacherId === profile?.uid;
-    if (isStudent()) {
+    // Permissions check
+    if (isAdmin()) {
+      // Admin sees everything but still can filter
+    } else if (isTeacher()) {
+      if (hw.teacherId !== profile?.uid) return false;
+    } else if (isStudent()) {
       const isEnrolled = enrollments.includes(hw.courseId);
-      return isEnrolled && hw.status === 'ACTIVE';
+      if (!(isEnrolled && hw.status === 'ACTIVE')) return false;
+    } else {
+      return false;
     }
-    return false;
+
+    // Role-based filter (Active/Inactive)
+    if (filter !== 'ALL' && hw.status !== filter) return false;
+
+    // Advanced filters (only for Teacher/Admin)
+    if (isTeacher() || isAdmin()) {
+      if (filterStage !== 'ALL' && hw.stage !== filterStage) return false;
+      if (filterGrade !== 'ALL' && hw.grade !== filterGrade) return false;
+      if (filterCourseId !== 'ALL' && hw.courseId !== filterCourseId) return false;
+
+      // Submission status filter
+      if (filterSubmissionStatus !== 'ALL') {
+        const hwSubs = allSubmissions.filter(s => s.homeworkId === hw.id);
+        const pendingCount = hwSubs.filter(s => s.grade === undefined || s.grade === null).length;
+        const totalSubs = hwSubs.length;
+
+        if (filterSubmissionStatus === 'PENDING') {
+          if (pendingCount === 0) return false;
+        } else if (filterSubmissionStatus === 'COMPLETED') {
+          if (totalSubs === 0 || pendingCount > 0) return false;
+        } else if (filterSubmissionStatus === 'SUBMITTED') {
+          if (totalSubs === 0) return false;
+        } else if (filterSubmissionStatus === 'NO_SUBMISSIONS') {
+          if (totalSubs > 0) return false;
+        }
+      }
+    }
+
+    return true;
   });
 
   // ── Create Homework ──
@@ -338,7 +396,7 @@ export const Homework = () => {
 
       {/* Filters & Search */}
       <Card className="border-none shadow-premium bg-white rounded-[2.5rem] overflow-hidden">
-        <CardHeader className="p-10 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <CardHeader className="p-10 border-b border-slate-50 flex flex-col gap-8">
            <div className="flex flex-wrap gap-4 flex-1">
               <div className="relative group flex-1 max-w-md">
                 <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
@@ -363,6 +421,74 @@ export const Homework = () => {
                  </select>
               </div>
            </div>
+
+           {/* Advanced Filters Row */}
+           {(isTeacher() || isAdmin()) && (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 transition-all">
+                <div className="space-y-2">
+                   <p className="text-[10px] font-black text-slate-400 mr-2 uppercase">المرحلة الدراسية</p>
+                   <select 
+                      className="h-12 w-full px-4 bg-white border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-4 focus:ring-brand-primary/5"
+                      value={filterStage}
+                      onChange={(e) => {
+                        setFilterStage(e.target.value);
+                        setFilterGrade('ALL');
+                      }}
+                    >
+                      <option value="ALL">جميع المراحل</option>
+                      {STAGES.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                   <p className="text-[10px] font-black text-slate-400 mr-2 uppercase">الصف الدراسي</p>
+                   <select 
+                      className="h-12 w-full px-4 bg-white border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-4 focus:ring-brand-primary/5"
+                      value={filterGrade}
+                      onChange={(e) => setFilterGrade(e.target.value)}
+                    >
+                      <option value="ALL">جميع الصفوف</option>
+                      {(filterStage === 'ALL' 
+                        ? Object.values(GRADES).flat() 
+                        : (GRADES[filterStage as keyof typeof GRADES] || [])
+                      ).map((g: any) => (
+                        <option key={g.id} value={g.id}>{g.label}</option>
+                      ))}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                   <p className="text-[10px] font-black text-slate-400 mr-2 uppercase">الكورس / الدورة</p>
+                   <select 
+                      className="h-12 w-full px-4 bg-white border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-4 focus:ring-brand-primary/5"
+                      value={filterCourseId}
+                      onChange={(e) => setFilterCourseId(e.target.value)}
+                    >
+                      <option value="ALL">جميع الكورسات</option>
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>{c.title}</option>
+                      ))}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                   <p className="text-[10px] font-black text-slate-400 mr-2 uppercase">حالة التسليم</p>
+                   <select 
+                      className="h-12 w-full px-4 bg-white border border-slate-200 rounded-xl text-xs font-black outline-none focus:ring-4 focus:ring-brand-primary/5"
+                      value={filterSubmissionStatus}
+                      onChange={(e) => setFilterSubmissionStatus(e.target.value)}
+                    >
+                      <option value="ALL">الكل</option>
+                      <option value="PENDING">بانتظار التصحيح ⏳</option>
+                      <option value="SUBMITTED">تم التسليم 📤</option>
+                      <option value="COMPLETED">تم التصحيح بالكامل ✅</option>
+                      <option value="NO_SUBMISSIONS">لم يسلم أحد بعد ❌</option>
+                    </select>
+                </div>
+             </div>
+           )}
         </CardHeader>
         
         <CardContent className="p-0">
@@ -402,7 +528,11 @@ export const Homework = () => {
                         </div>
                         <div className="space-y-1">
                           <p className="font-black text-slate-900 group-hover:text-brand-primary transition-colors">{hw.title}</p>
-                          <p className="text-xs text-slate-400 font-bold">{hw.subject || hw.courseTitle}</p>
+                          <div className="flex flex-wrap gap-2">
+                             <p className="text-[10px] text-slate-400 font-bold">{hw.subject || hw.courseTitle}</p>
+                             {hw.stage && <p className="text-[10px] text-brand-primary font-black bg-brand-primary/5 px-2 py-0.5 rounded-md">{getStageLabel(hw.stage)}</p>}
+                             {hw.grade && <p className="text-[10px] text-slate-500 font-black bg-slate-100 px-2 py-0.5 rounded-md">{getGradeLabel(hw.grade)}</p>}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -415,12 +545,48 @@ export const Homework = () => {
                       </div>
                     </td>
                     <td className="p-6 text-center">
-                       <span className="inline-block px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
-                         {hw.submissions || 0} طالب قام بالتسليم
-                       </span>
+                       <div className="flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-2">
+                             <span className="inline-block px-3 py-1.5 rounded-xl bg-slate-100 text-[10px] font-black text-slate-600">
+                               {hw.submissions || 0} طالب قام بالتسليم
+                             </span>
+                          </div>
+                          {(isTeacher() || isAdmin()) && (hw.submissions || 0) > 0 && (
+                            <div className="flex flex-wrap justify-center gap-1 max-w-[200px]">
+                               {allSubmissions
+                                 .filter(s => s.homeworkId === hw.id)
+                                 .slice(0, 3)
+                                 .map(s => (
+                                   <div key={s.id} className="group/name relative">
+                                      <div className={cn(
+                                        "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-sm transition-transform hover:scale-110 cursor-help",
+                                        s.grade !== undefined && s.grade !== null ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"
+                                      )} title={`${s.studentName} (${s.grade !== undefined && s.grade !== null ? 'تم التصحيح' : 'بانتظار التصحيح'})`}>
+                                        {s.studentName[0]}
+                                      </div>
+                                   </div>
+                                 ))}
+                               {hw.submissions > 3 && (
+                                 <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400 border-2 border-white shadow-sm">
+                                   +{hw.submissions - 3}
+                                 </div>
+                               )}
+                            </div>
+                          )}
+                       </div>
                     </td>
                     <td className="p-6 text-center">
-                       {hw.status === 'ACTIVE' ? (
+                       {isStudent() && mySub ? (
+                         mySub.grade !== undefined && mySub.grade !== null ? (
+                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 text-green-600 text-[10px] font-black ring-1 ring-green-100">
+                             <CheckCircle2 className="h-3 w-3" /> تم التصحيح ({mySub.grade}/{hw.maxGrade}) ✅
+                           </span>
+                         ) : (
+                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-600 text-[10px] font-black ring-1 ring-amber-100">
+                             <Clock className="h-3 w-3 animate-pulse" /> بانتظار التصحيح ⏳
+                           </span>
+                         )
+                       ) : hw.status === 'ACTIVE' ? (
                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 text-green-600 text-[10px] font-black ring-1 ring-green-100">
                             <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" /> متاح للطالب
                          </span>

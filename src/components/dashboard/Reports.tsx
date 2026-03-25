@@ -16,6 +16,8 @@ import {
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardContent } from '../ui/Card';
 import { cn } from '../../lib/utils';
+import { exportToPDF, exportToExcel } from '../../lib/reports';
+import { FileDown, Download as DownloadIcon } from 'lucide-react';
 import { collection, query, getDocs, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useEducatorsAuth } from '../auth/AuthProvider';
@@ -77,6 +79,20 @@ export const Reports = () => {
     fetchData();
   }, [profile]);
 
+  const handleDownloadPDF = async () => {
+    await exportToPDF('reports-container', `تقرير_المنصة_الشامل_${new Date().toLocaleDateString('ar-EG')}`);
+  };
+
+  const handleDownloadExcel = () => {
+    const data = students.map(s => ({
+      'اسم الطالب': s.fullName,
+      'النقاط': s.points || 0,
+      'الدورات المشترك بها': s.enrolledCourses?.length || 0,
+      'تاريخ الانضمام': s.createdAt ? new Date(s.createdAt).toLocaleDateString('ar-EG') : ''
+    }));
+    exportToExcel(data, `كشف_الطلاب_${new Date().toLocaleDateString('ar-EG')}`);
+  };
+
   const analytics = React.useMemo(() => {
     if (loading) return null;
     
@@ -124,7 +140,7 @@ export const Reports = () => {
   const topStudents = analytics?.topStudents || [];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700" dir="rtl">
+    <div id="reports-container" className="space-y-8 animate-in fade-in duration-700" dir="rtl">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900 p-8 rounded-[3rem] text-white shadow-2xl shadow-slate-200">
         <div className="space-y-2">
@@ -132,8 +148,20 @@ export const Reports = () => {
           <p className="text-slate-400 font-bold">تحليل دقيق لمستوى الطلاب ونمو المنصة التعليمية</p>
         </div>
         <div className="flex gap-4">
-           <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl font-black">
-             <Calendar className="h-5 w-5 ml-2" />
+           <Button 
+             variant="outline" 
+             className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl font-black"
+             onClick={handleDownloadExcel}
+           >
+             <FileDown className="h-5 w-5 ml-2" />
+             تصدير Excel
+           </Button>
+           <Button 
+             variant="outline" 
+             className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl font-black"
+             onClick={handleDownloadPDF}
+           >
+             <DownloadIcon className="h-5 w-5 ml-2" />
              تصدير PDF
            </Button>
         </div>

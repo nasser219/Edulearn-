@@ -30,6 +30,8 @@ import {
   LineChart,
   Line
 } from 'recharts';
+import { exportToPDF, exportToExcel } from '../../lib/reports';
+import { Download, FileDown } from 'lucide-react';
 
 interface QuizResult {
   id: string;
@@ -145,6 +147,26 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
     analyzeData();
   }, [profile]);
 
+  const handleDownloadPDF = async () => {
+    await exportToPDF('performance-report', `تقرير_الأداء_الذكي_${new Date().toLocaleDateString('ar-EG')}`);
+  };
+
+  const handleDownloadExcel = () => {
+    const data = results.map(r => ({
+      'اسم الطالب': r.studentName,
+      'المادة': r.subject || 'عام',
+      'الموضوع/الاختبار': r.topic || 'غير محدد',
+      'الدرجة (%)': `${r.score}%`,
+      'تاريخ التقديم': r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('ar-EG') : 'غير متوفر'
+    }));
+    
+    exportToExcel(
+      data, 
+      `تقرير_الأداء_الشامل_${new Date().toLocaleDateString('ar-EG')}`,
+      'كشف الدرجات'
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-20 space-y-4" dir="rtl">
@@ -158,7 +180,7 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-12" dir="rtl">
+    <div id="performance-report" className="space-y-8 animate-in fade-in duration-700 pb-12" dir="rtl">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[3rem] shadow-premium border border-slate-50">
         <div className="space-y-1">
@@ -316,9 +338,26 @@ export const PerformanceAI = ({ onBack }: { onBack: () => void }) => {
         <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between">
            <div>
               <h3 className="text-xl font-black text-slate-800">متابعة الطلاب المشمولين بالتحليل</h3>
-              <p className="text-xs text-slate-400 font-bold mt-1 tracking-tight">آخر 10 نتائج تم تحليلها لطلابك</p>
+           <p className="text-xs text-slate-400 font-bold mt-1 tracking-tight">آخر 10 نتائج تم تحليلها لطلابك</p>
            </div>
-           <Button variant="outline" className="rounded-xl font-black">تحميل تقرير كامل (PDF)</Button>
+           <div className="flex gap-2">
+             <Button 
+               variant="outline" 
+               className="rounded-xl font-black border-brand-primary text-brand-primary hover:bg-brand-primary/5"
+               onClick={handleDownloadExcel}
+             >
+               <FileDown className="h-4 w-4 ml-2" />
+               تصدير Excel
+             </Button>
+             <Button 
+               variant="primary" 
+               className="rounded-xl font-black shadow-lg"
+               onClick={handleDownloadPDF}
+             >
+               <Download className="h-4 w-4 ml-2" />
+               تحميل تقرير كامل (PDF)
+             </Button>
+           </div>
         </CardHeader>
         <CardContent className="p-0">
            <table className="w-full text-right border-collapse min-w-[800px]">

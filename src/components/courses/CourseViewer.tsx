@@ -286,6 +286,8 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
   const [isRequesting, setIsRequesting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string>('');
+
+  const isApproved = isAdmin() || isTeacher() || course?.students?.includes(profile?.uid) || enrollment?.status === 'APPROVED';
   const [videoProgress, setVideoProgress] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem(`course_progress_${courseId}`);
@@ -548,6 +550,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
 
   const getIsLessonLocked = (lesson: any) => {
     if (isAdmin() || isTeacher()) return false;
+    if (!isApproved) return true; // Lock all lessons if not approved
     if (lesson.locked) return true;
 
     if (enrollment?.completedLessons?.includes(lesson.id)) return false;
@@ -629,7 +632,7 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
                 <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-premium overflow-hidden min-h-[600px] animate-in slide-in-from-bottom duration-500">
                   <QuizEngine
                     quizId={currentLesson.contentUrl}
-                    onBack={() => { }}
+                    onBack={onBack}
                     onComplete={() => markLessonCompleted(currentLesson.id)}
                   />
                 </div>
@@ -719,86 +722,83 @@ export const CourseViewer = ({ courseId, onBack }: { courseId: string, onBack: (
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between">
-          <div className="text-right">
-            <h2 className="text-xl font-bold text-slate-900">{currentLesson?.title || 'جاري التحميل...'}</h2>
-            <p className="text-sm text-slate-500">{course.title}</p>
-          </div>
-          <div className="flex items-center gap-2" dir="ltr">
-            <Button variant="outline" size="sm" disabled={activeLessonIdx === 0} onClick={() => setActiveLessonIdx(v => v - 1)}>
-              <ChevronLeft className="h-4 w-4 mr-1" /> السابق
-            </Button>
+        {isApproved && (
+          <>
+            <div className="flex items-center justify-between">
+              <div className="text-right">
+                <h2 className="text-xl font-bold text-slate-900">{currentLesson?.title || 'جاري التحميل...'}</h2>
+                <p className="text-sm text-slate-500">{course.title}</p>
+              </div>
+              <div className="flex items-center gap-2" dir="ltr">
+                <Button variant="outline" size="sm" disabled={activeLessonIdx === 0} onClick={() => setActiveLessonIdx(v => v - 1)}>
+                  <ChevronLeft className="h-4 w-4 mr-1" /> السابق
+                </Button>
 
-            {currentLesson?.type === 'VIDEO' && !enrollment?.completedLessons?.includes(currentLesson.id) && !optimisticCompleted.has(currentLesson.id) && (
-              <Button 
-                variant="primary" 
-                size="sm" 
-                disabled={getVideoWatchPercent(currentLesson.id) < VIDEO_COMPLETION_THRESHOLD}
-                onClick={() => markLessonCompleted(currentLesson.id)}
-                className={`transition-all font-black text-xs ${
-                  getVideoWatchPercent(currentLesson.id) >= VIDEO_COMPLETION_THRESHOLD 
-                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-200 animate-pulse' 
-                    : 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed hidden md:flex min-w-[140px] justify-center'
-                }`}
-              >
-                {getVideoWatchPercent(currentLesson.id) >= VIDEO_COMPLETION_THRESHOLD 
-                  ? 'تأكيد إكمال الدرس ✅' 
-                  : `شاهد ${VIDEO_COMPLETION_THRESHOLD}% للتأكيد (${getVideoWatchPercent(currentLesson.id)}%)`}
-              </Button>
-            )}
+                {currentLesson?.type === 'VIDEO' && !enrollment?.completedLessons?.includes(currentLesson.id) && !optimisticCompleted.has(currentLesson.id) && (
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => markLessonCompleted(currentLesson.id)}
+                    className="transition-all font-black text-xs bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-200 animate-pulse min-w-[140px] justify-center"
+                  >
+                    تأكيد المشاهدة يدوياً ✅
+                  </Button>
+                )}
 
-            {currentLesson && (enrollment?.completedLessons?.includes(currentLesson.id) || optimisticCompleted.has(currentLesson.id)) && (
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (activeLessonIdx < allLessons.length - 1) {
-                    setActiveLessonIdx(v => v + 1);
-                  }
-                }}
-                className={`hidden md:flex px-3 py-1.5 rounded-lg items-center justify-center gap-1.5 text-xs font-black shadow-sm transition-all border ${
-                  activeLessonIdx < allLessons.length - 1 
-                    ? 'bg-green-500 hover:bg-green-600 text-white border-green-600 shadow-green-200 animate-in fade-in zoom-in duration-300' 
-                    : 'bg-green-50 text-green-600 border-green-200'
-                }`}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" /> 
-                {activeLessonIdx < allLessons.length - 1 ? 'مكتمل - الدرس التالي ⏭️' : 'مكتمل'}
-              </Button>
-            )}
+                {currentLesson && (enrollment?.completedLessons?.includes(currentLesson.id) || optimisticCompleted.has(currentLesson.id)) && (
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (activeLessonIdx < allLessons.length - 1) {
+                        setActiveLessonIdx(v => v + 1);
+                      }
+                    }}
+                    className={`hidden md:flex px-3 py-1.5 rounded-lg items-center justify-center gap-1.5 text-xs font-black shadow-sm transition-all border ${
+                      activeLessonIdx < allLessons.length - 1 
+                        ? 'bg-green-500 hover:bg-green-600 text-white border-green-600 shadow-green-200 animate-in fade-in zoom-in duration-300' 
+                        : 'bg-green-50 text-green-600 border-green-200'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> 
+                    {activeLessonIdx < allLessons.length - 1 ? 'مكتمل - الدرس التالي ⏭️' : 'مكتمل'}
+                  </Button>
+                )}
 
-            <Button variant="outline" size="sm" disabled={activeLessonIdx === allLessons.length - 1} onClick={() => setActiveLessonIdx(v => v + 1)}>
-              التالي <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-right">وصف الدرس</h3>
-            <div className="bg-red-50 px-3 py-1 rounded-lg border border-red-100 flex items-center gap-2">
-              <AlertCircle className="h-3 w-3 text-red-500" />
-              <span className="text-[10px] font-black text-red-600">نظام حماية المحتوى مفعل 🛡️</span>
+                <Button variant="outline" size="sm" disabled={activeLessonIdx === allLessons.length - 1} onClick={() => setActiveLessonIdx(v => v + 1)}>
+                  التالي <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
             </div>
-          </div>
-          <p className="text-sm text-slate-600 leading-relaxed text-right">
-            {currentLesson?.description || "لا يوجد وصف متاح لهذا الدرس حالياً."}
-          </p>
 
-          <div className="mt-6 space-y-3">
-            <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100 text-right">
-              <p className="text-[10px] font-black text-amber-700 leading-relaxed">
-                ⚠️ ملحوظة هامة: يمنع منعا باتا أخذ لقطات شاشة (Screenshots) أو تسجيل فيديو للمحتوى. أي محاولة سيتم رصدها تلقائياً وقد تؤدي لحظر الحساب نهائياً.
+            <div className="bg-white rounded-xl p-6 border border-slate-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-right">وصف الدرس</h3>
+                <div className="bg-red-50 px-3 py-1 rounded-lg border border-red-100 flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3 text-red-500" />
+                  <span className="text-[10px] font-black text-red-600">نظام حماية المحتوى مفعل 🛡️</span>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed text-right">
+                {currentLesson?.description || "لا يوجد وصف متاح لهذا الدرس حالياً."}
               </p>
-            </div>
-          </div>
-        </div>
 
-        <LessonComments
-          lessonId={currentLesson.id}
-          courseId={courseId}
-          profile={profile}
-        />
+              <div className="mt-6 space-y-3">
+                <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100 text-right">
+                  <p className="text-[10px] font-black text-amber-700 leading-relaxed">
+                    ⚠️ ملحوظة هامة: يمنع منعا باتا أخذ لقطات شاشة (Screenshots) أو تسجيل فيديو للمحتوى. أي محاولة سيتم رصدها تلقائياً وقد تؤدي لحظر الحساب نهائياً.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <LessonComments
+              lessonId={currentLesson.id}
+              courseId={courseId}
+              profile={profile}
+            />
+          </>
+        )}
       </div>
 
       {/* Right Side: Content Sidebar */}

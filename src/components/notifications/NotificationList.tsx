@@ -20,7 +20,7 @@ interface NotificationListProps {
 }
 
 export const NotificationList: React.FC<NotificationListProps> = ({ onClose, onNavigate }) => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications, loading } = useNotifications();
 
   const getIcon = (type: Notification['type']) => {
     switch (type) {
@@ -63,6 +63,11 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose, onN
           {unreadCount > 0 && (
              <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] font-black hover:bg-slate-100 rounded-lg text-brand-primary" onClick={markAllAsRead}>
                تحديد الكل كمقروء
+             </Button>
+          )}
+          {notifications.length > 0 && (
+             <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] font-black hover:bg-red-50 rounded-lg text-red-500" onClick={deleteAllNotifications}>
+               مسح الكل
              </Button>
           )}
           <button onClick={onClose} className="h-8 w-8 hover:bg-slate-100 rounded-lg flex items-center justify-center transition-colors">
